@@ -7,13 +7,13 @@ var splinePoints = [];
 var splineRadius = duration/(Math.PI*2)*0.4;
 
 
-var points = Math.floor(duration/250);
+var points = Math.floor(duration/1000/2);
 for (var i = 0; i < points; i++) {
 	splinePoints.push(
 		new THREE.Vector4(
 			Math.sin(Math.PI*2*i/points)*splineRadius,
 			Math.cos(Math.PI*2*i/points)*splineRadius,
-			(Math.random()*2-1)*splineRadius/170,
+			(Math.random()*2-1)*splineRadius/70,
 			tubeRadius*outerTubeRadiusCoeff));
 };
 
@@ -23,7 +23,7 @@ var level = {
 	length: spline.getLength()
 }
 
-var tube = new THREE.TubeGeometry(spline,Math.floor(level.length/512), 16, true, false);
+var tube = new THREE.TubeGeometry(spline,Math.floor(level.length/128), 16, true, false);
 
 var tubeMat = new THREE.MeshBasicMaterial( { color: 0x303030	, wireframe:false, transparent: false, side:1} );
 var tubeMat = new THREE.MeshBasicMaterial( { color: 0xececec	, wireframe:false, transparent: false, side:1} );
