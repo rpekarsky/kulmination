@@ -32,7 +32,6 @@ Obstacles.prepare = function () {
 	};
 }
 
-
 Obstacles.RotateObstacle=(function(){
 	var parent = GameObject.prototype;
 	var BoxGeometry = new THREE.BoxGeometry(1,1,1);
@@ -96,9 +95,6 @@ Obstacles.RotateObstacle=(function(){
 	};
 	return RotateObstacle;
 })();
-
-
-
 
 Obstacles.Coin=(function(){
 	var collectedColor = new THREE.Color(0x0090ff);
@@ -170,59 +166,3 @@ Obstacles.Coin=(function(){
 	return Coin;
 })();
 
-
-
-// Obstacles.MultyObstacle=(function(){
-	
-// 	function MultyObstacle (parameters) {
-// 		this.position = parameters.position || 0;
-// 		this.type = parameters.type;
-// 		this.startRotation = parameters.startRotation || 0;
-// 		this.timestamp = parameters.timestamp || 0;
-// 		this.calculatedPosition = spline.getPointAt(this.position/level.length);
-// 		this.calculatedDirection = spline.getTangentAt(this.position/level.length);
-// 		// this.torus = new THREE.Mesh(new THREE.TorusGeometry(tubeRadius,1,3,24),DangerMaterial);
-// 		this.number = parameters.number || 3;
-// 		this.speed = parameters.speed || 0;
-// 		this.radius = tubeRadius;
-// 		this.pivot = new THREE.Object3D();
-// 		this.childs = [];
-// 		this.init();
-// 	}
-// 	MultyObstacle.prototype.init = function(){
-// 		var mesh;
-// 		for (var i = 1; i <= this.number; i++) {
-// 			var start = 360/this.number*TO_RADIANS*i+this.startRotation;
-// 			mesh = new Obstacles.RotateObstacle({
-// 				speed:this.speed,
-// 				position:this.position,
-// 				startRotation:start,
-// 				timestamp:this.timestamp,
-// 				type:this.type
-// 			});
-// 			// mesh.pivotRotate.rotation.z = 360/this.number*TO_RADIANS*i; 
-// 			this.childs.push(mesh);
-// 		};
-// 		// this.torus.position = this.calculatedPosition;
-// 		// this.torus.lookAt(this.calculatedPosition.clone().add(this.calculatedDirection));
-		
-// 		// this.pivot.rotation.x = (Math.random()*360)*TO_RADIANS;
-// 		// scene.add(this.pivot);
-// 		// scene.add(this.torus);
-// 		// Obstacles.objects.push(this);
-// 	};
-// 	MultyObstacle.prototype.testCollide = function(obj) {
-		
-// 	};
-
-// 	MultyObstacle.prototype.update = function(){
-// 		// console.log('mul update');
-// 		// if(this.number == 3){
-// 			for (var i = 0; i < this.childs.length; i++) {
-// 				this.childs[i].update();
-// 			};
-// 		// }
-// 		// this.pivot.rotation.x += 90*TO_RADIANS/60;
-// 	};
-// 	return MultyObstacle;
-// })();

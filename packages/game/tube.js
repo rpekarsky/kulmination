@@ -1,3 +1,8 @@
+
+function Tube(){
+	
+}
+
 var tubeRadius = 30;
 var tubeRadiusScaled = tubeRadius;
 

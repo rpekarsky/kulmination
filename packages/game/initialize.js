@@ -1,3 +1,19 @@
+var renderer = new THREE.WebGLRenderer( { antialias: true } );
+var downscale = 4;
+var width = window.innerWidth;
+var height = window.innerHeight;
+var bgColor = 0xa0a0a0
+
+renderer.setSize( width/downscale, height/downscale );
+
+scene = new THREE.Scene();
+
+document.body.appendChild( renderer.domElement );
+
+
+var lastX = width/2;
+var lastXto = width/2;
+
 var gameCam = new GameCamera();
 var mainCamera = gameCam.camera;
 
@@ -99,7 +115,6 @@ function loadBeats(){
 	Obstacles.prepare();
 }
 
-
 function addPlates(){
 	// var num = level.length/17;
 	var num = level.length/17;
@@ -158,16 +173,49 @@ scene.add(tubeMesh);
 
 document.body.appendChild( hudRenderer.domElement );
 
-function render() {
 
+var rotateDelta = 0;
+var angle = 0;
+
+function mainloop(){
+	curLoopTime = MPlayer.audio.currentTime/MPlayer.audio.duration;
+	lastX += (lastXto - lastX)*0.05;
+	if(lastXto == width/2){
+		lastX += (lastXto - lastX)*0.1;
+	}
+	rotateDelta = ((width/2 - lastX)/width);
+	angle += rotateDelta*30;
+	gameCam.update();
+	player.update();
+	Obstacles.update();
+	
+	scoreHud.update();
+	hudWrapper.rotation.z = rotateDelta*20*TO_RADIANS;
+	hudWrapper.rotation.y = rotateDelta*5*TO_RADIANS;
+}
+
+function render() {
 	requestAnimationFrame(render);
-	// composer.render(scene, mainCamera);
 	renderer.render(scene, mainCamera);
 	hudRenderer.render(hudScene,hudCamera);
-	// testObject.rotation.y += 2*TO_RADIANS
-
 	mainloop();
 }
+
+var MPlayer = (function(){
+	function MPlayer(){
+		this.audio = new Audio();
+		this.audio.src = musicSrc;
+	}
+	MPlayer.prototype.init = function() {
+	};
+	
+	MPlayer.prototype.play = function() {
+	    this.audio.loop = true;
+	    this.audio.play();
+	};
+
+	return new MPlayer();
+})();
 MPlayer.play();
 
 
@@ -175,3 +223,4 @@ MPlayer.play();
 
 
 render();
+
