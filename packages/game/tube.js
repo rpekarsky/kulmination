@@ -1,7 +1,7 @@
 var tubeRadius = 30;
 var tubeRadiusScaled = tubeRadius;
 
-var outerTubeRadiusCoeff = 2.5;
+var outerTubeRadiusCoeff = 4.5;
 
 var splinePoints = [];
 var splineRadius = duration/(Math.PI*2)*0.4;
@@ -13,7 +13,7 @@ for (var i = 0; i < points; i++) {
 		new THREE.Vector4(
 			Math.sin(Math.PI*2*i/points)*splineRadius,
 			Math.cos(Math.PI*2*i/points)*splineRadius,
-			(Math.random()*2-1)*splineRadius/70,
+			(Math.random()*2-1)*splineRadius/60,
 			tubeRadius*outerTubeRadiusCoeff));
 };
 

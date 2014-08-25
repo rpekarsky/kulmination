@@ -34,8 +34,8 @@ var GameCamera = (function () {
 		this.shake.y = Math.random()*2-1;
 		this.shake.z = Math.random()*2-1;
 
-		var v4n = spline.getPointAt((curLoopTime+offset*5)%1);
-		var v4nd = spline.getTangentAt((curLoopTime+offset*5)%1);
+		var v4n = spline.getPointAt((curLoopTime+offset*7)%1);
+		var v4nd = spline.getTangentAt((curLoopTime+offset*7)%1);
 		this.calculatedPosition = new THREE.Vector3(v4.x,v4.y,v4.z);
 		this.calculatedDirection = new THREE.Vector3(v4d.x,v4d.y,v4d.z);
 

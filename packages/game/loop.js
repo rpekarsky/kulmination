@@ -18,7 +18,7 @@ function mainloop(){
 	}
 	// rotateDelta = ((width/2 - lastX)/width);
 	rotateDelta = ((width/2 - lastX)/width);
-	angle += rotateDelta*controller.rotateSpeed;
+	angle += rotateDelta*30;
 	// angle = angle%360;
 	// console.log(angle);
 	// camera2
