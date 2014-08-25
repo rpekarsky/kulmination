@@ -1,18 +1,5 @@
 
 //Events 
-
-window.onmousemove = function(e){
-	// console.log(e);
-	lastX = e.x;
-	if(e.altKey){
-		camera.position.x -= (width/2 -e.x)/130;
-		camera.position.y -= (e.y - height/2)/130;
-	}
-	if(e.ctrlKey){
-		camera.position.z += (width/2 -e.x)/130;
-		// camera.updateProjectionMatrix();
-	}
-}
 window.onkeydown = function(e){
 	if(e.keyCode == 37){
 		lastXto = 0
@@ -46,7 +33,7 @@ function onDocumentTouchMove(event) {
 		lastX = event.touches[ 0 ].pageX;
 	}
 }
-renderer.domElement.addEventListener( 'touchstart', onDocumentTouchStart, false );
-renderer.domElement.addEventListener( 'touchmove', onDocumentTouchMove, false );
+document.body.addEventListener( 'touchstart', onDocumentTouchStart, false );
+document.body.addEventListener( 'touchmove', onDocumentTouchMove, false );
 
 

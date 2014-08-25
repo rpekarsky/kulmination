@@ -48,9 +48,9 @@ Obstacles.RotateObstacle=(function(){
 
 		this.mesh = new THREE.Mesh(BoxGeometry,DangerMaterial);
 		
-		this.mesh.position.x = tubeRadius - tubeRadius*outerTubeRadiusCoeff/2;
+		this.mesh.position.x = tube.radius-tube.radius*tube.outerTubeRadiusCoeff/2;
 		// this.mesh.position.z = 1;
-		this.mesh.scale.set(tubeRadius*outerTubeRadiusCoeff,12,4);
+		this.mesh.scale.set(tube.radius*tube.outerTubeRadiusCoeff,12,4);
 
 		this.obj.add(this.mesh);
 
@@ -74,14 +74,14 @@ Obstacles.RotateObstacle=(function(){
 		gameCam.fovTo = 60;
 		gameCam.fovSpeed = 0.02;
 		SCORE -= 250;
-		scoreHud.setScore(SCORE);
+		// scoreHud.setScore(SCORE);
 	};
 	RotateObstacle.prototype.collideOffCallback = function() {
 		parent.collideOffCallback.call(this);
 		// colorHSL.h -= 0.3;
 		gameCam.shakeValue += 0.2;
 		SCORE += 50;
-		scoreHud.setScore(SCORE);
+		// scoreHud.setScore(SCORE);
 		// scoreHud.setScore(SCORE);
 
 		// gameCam.fov = 110;
@@ -113,7 +113,7 @@ Obstacles.Coin=(function(){
 
 	var parent = GameObject.prototype;
 	function Coin (parameters) {
-		parameters.height = tubeRadius;
+		parameters.height = tube.radius;
 		parameters.delta = 45;
 		parameters.debug = false;
 		parameters.rotation = parameters.startRotation;
@@ -156,7 +156,7 @@ Obstacles.Coin=(function(){
 		gameCam.fovSpeed = 0.02
 		gameCam.shakeValue += 0.02;
 		SCORE += 100;
-		scoreHud.setScore(SCORE);
+		// scoreHud.setScore(SCORE);
 	};
 
 	Coin.prototype.update = function(){

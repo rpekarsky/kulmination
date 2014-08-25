@@ -56,7 +56,7 @@ var Player = (function(){
 
 	Player.prototype.update = function() {
 		// this.position = level.length/duration*5000;
-		this.position = level.length*curLoopTime;
+		this.position = tube.length*curLoopTime;
 		this.rotation = angle;
 		this.obj.rotation.x = rotateDelta*45*TO_RADIANS;
 		this.obj.rotation.z = -rotateDelta*180*TO_RADIANS;

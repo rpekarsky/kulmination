@@ -7,7 +7,7 @@ var GameObject = (function(){
 		this.position = parameters.position || 0;
 		this.timestamp = parameters.timestamp || 0;
 		this.rotation = parameters.rotation || 0;
-		this.radius = tubeRadius-this.height;
+		this.radius = tube.radius-this.height;
 		this.debug = parameters.debug || false;
 
 		this.obj = new THREE.Object3D();
@@ -15,9 +15,9 @@ var GameObject = (function(){
 		this.pivotRotate = new THREE.Object3D();
 		this.pivotPosition = new THREE.Object3D();
 
-		this.calculatedPosition = spline.getPointAt(this.position/level.length);
-		this.calculatedDirection = spline.getTangentAt(this.position/level.length);
-		this.radius = tubeRadius-this.height;
+		this.calculatedPosition = tube.spline.getPointAt(this.position/tube.length);
+		this.calculatedDirection = tube.spline.getTangentAt(this.position/tube.length);
+		this.radius = tube.radius-this.height;
 		// this.update();
 	}
 	GameObject.prototype.init = function() {
@@ -38,8 +38,8 @@ var GameObject = (function(){
 	};
 
 	GameObject.prototype.update = function() {
-		this.calculatedPosition = spline.getPointAt(this.position/level.length);
-		this.calculatedDirection = spline.getTangentAt(this.position/level.length);
+		this.calculatedPosition = tube.spline.getPointAt(this.position/tube.length);
+		this.calculatedDirection = tube.spline.getTangentAt(this.position/tube.length);
 		this.calculatedDirection = new THREE.Vector3(this.calculatedDirection.x,this.calculatedDirection.y,this.calculatedDirection.z);
 
 		this.pivotPosition.position = this.calculatedPosition;

@@ -1,8 +1,6 @@
 hudRenderer = new THREE.CSS3DRenderer();
 hudCamera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 1, 10000 );
 hudCamera.position.z = 300;
-// hudCamera.position.x = 450;
-// hudCamera.position.y = -100;
 hudScene = new THREE.Scene();
 hudWrapper = new THREE.Object3D();
 hudScene.add(hudWrapper);
@@ -75,7 +73,7 @@ var HudMultipler = (function () {
 
 
 var scoreHud = new HudScore();
-// var multiplerHud = new HudMultipler();
+
 
 
 hudRenderer.setSize( window.innerWidth, window.innerHeight );
