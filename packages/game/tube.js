@@ -1,17 +1,21 @@
 Tube = (function Tube(){
-	
-	function Tube(duration){
+
+			var color = 0x70c0d0;
+	var Material = new THREE.MeshBasicMaterial( { color: color, wireframe:false, transparent: false, opacity:0.5,side: THREE.FrontSide} );
+	function Tube(game){
+		this.game = game;
+		this.bgPlates = new THREE.Geometry();
 		this.radius = 30;
 		this.outerTubeRadiusCoeff = 2.5;
 		var splinePoints = [];
-		var splineRadius = duration/(Math.PI*2)*0.4;
-		var points = Math.floor(duration/1000/2);
+		var splineRadius = this.game.duration/(Math.PI*2)*0.4;
+		var points = Math.floor(this.game.duration/1000/2);
 		for (var i = 0; i < points; i++) {
 			splinePoints.push(
 				new THREE.Vector4(
 					Math.sin(Math.PI*2*i/points)*splineRadius,
 					Math.cos(Math.PI*2*i/points)*splineRadius,
-					(Math.random()*2-1)*splineRadius/60,
+					(Math.random()*2-1)*splineRadius/160,
 					this.radius*this.outerTubeRadiusCoeff));
 		};
 		var spline = new THREE.ClosedSplineCurve4(splinePoints);
@@ -25,11 +29,9 @@ Tube = (function Tube(){
 	}
 	Tube.prototype={
 		BgPlate:(function(){
-			var bgPlates = new THREE.Geometry();
 			var PlateGeom = new THREE.PlaneGeometry(10,10);
 			// var PlateGeom = new THREE.TorusGeometry(6,1,2,4);
-			var color = 0xb0d0df;
-			var color = 0x70c0d0;
+			// var color = 0xb0d0df;
 
 			pivotRotate = new THREE.Object3D();
 			pivotPosition = new THREE.Object3D();
@@ -37,17 +39,18 @@ Tube = (function Tube(){
 
 			pivotRotate.add(meshPivot);
 			pivotPosition.add(pivotRotate);
-			var Material = new THREE.MeshBasicMaterial( { color: color, wireframe:false, transparent: false, opacity:0.5,side: THREE.FrontSide} );
+			
 			// var Wireframe = new THREE.MeshBasicMaterial( { color: 0xa0b0c0, wireframe:true, wireframeLinewidth:1 ,side: THREE.Front} );
 			var BackMaterial = new THREE.MeshBasicMaterial( { color: color, wireframe:false, transparent: true , opacity: 0.3 ,side: THREE.BackSide} );
-			function BgPlate (position) {
+			function BgPlate (position,game) {
+				this.game = game;
 				this.height = 3;
 				this.heightDelta = 3;
 				this.heightDelta2 = this.heightDelta/2;
 				this.position = position || 0;
-				this.calculatedPosition = tube.spline.getPointAt(this.position/tube.length);
-				this.calculatedDirection = tube.spline.getTangentAt(this.position/tube.length);
-				this.radius = tube.radius*1.2;
+				this.calculatedPosition = this.game.tube.spline.getPointAt(this.position/this.game.tube.length);
+				this.calculatedDirection = this.game.tube.spline.getTangentAt(this.position/this.game.tube.length);
+				this.radius = this.game.tube.radius*1.2;
 				//this.geometry = new THREE.PlaneGeometry(10,20);
 				this.init();
 			}
@@ -69,12 +72,12 @@ Tube = (function Tube(){
 				// this.meshPivot.updateMatrixWorld();
 				// scene.remove(this.pivotPosition);
 				// this.mesh = new THREE.Mesh(this.geometry,Wireframe);
-				bgPlates.merge(PlateGeom,meshPivot.matrixWorld);
+				this.game.tube.bgPlates.merge(PlateGeom,meshPivot.matrixWorld);
 				
 			};
 
 			// BgPlate.prototype.mesh = THREE.SceneUtils.createMultiMaterialObject( bgPlates, [Material,BackMaterial]);
-			BgPlate.prototype.mesh = new THREE.Mesh( bgPlates, Material);
+			
 			return BgPlate;
 		})(),
 		BgWall:(function(){
@@ -121,16 +124,17 @@ Tube = (function Tube(){
 			return BgWall;
 		})(),
 		addPlates:function addPlates(){
-			var num = tube.length/17;
 			console.time('creating plates');
+			var num = this.length/17;
 			for (var i = 0; i < num; i++) {
-				var pos = tube.length/num*i;
+				var pos = this.length/num*i;
 				for (var j = 0; j < 4*Math.random(); j++) {
-					new Tube.prototype.BgPlate(pos);
+					new this.BgPlate(pos,this.game);
 				};
 			};	
+			var bgPlatesMesh = new THREE.Mesh(this.bgPlates,Material);
+			this.game.scene.add(bgPlatesMesh);
 			console.timeEnd('creating plates');
-			scene.add(Tube.prototype.BgPlate.prototype.mesh);
 		},
 		addWalls:function addWalls(){
 			console.time('creating walls');

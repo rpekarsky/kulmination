@@ -149,22 +149,7 @@ function render() {
 	mainloop();
 }
 
-// var MPlayer = (function(){
-// 	function MPlayer(){
-// 		this.audio = new Audio();
-// 		this.audio.src = musicSrc;
-// 	}
-// 	MPlayer.prototype.init = function() {
-// 	};
-	
-// 	MPlayer.prototype.play = function() {
-// 	    this.audio.loop = true;
-// 	    this.audio.play();
-// 	};
-
-// 	return new MPlayer();
-// })();
-MPlayer.init(musicSrc);
-MPlayer.play();
+// MPlayer.init(musicSrc);
+// MPlayer.play();
 render();
 

@@ -19,17 +19,20 @@ GamePage = (function(){
 	}
 	GamePage.prototype = {
 		init:function(params){
-			MPlayer.init(params);
+			// MPlayer.init(params);
 			this.DOM.className = 'page GamePage';
-			this.header.textContent = params;
-			console.log(this.name);
+			this.header.textContent = params.path;
+			// console.log(this.name);
+			this.game = new Game(params);
 			return this;
 		},
 		show:function(){
+			console.log("SHOW!");
 			document.body.appendChild(this.DOM);
-			MPlayer.play();
+			// MPlayer.play();
 		},
 		hide:function(){
+			this.game.close();
 			MPlayer.stop();
 			this.DOM.remove();
 			console.log('hided!');

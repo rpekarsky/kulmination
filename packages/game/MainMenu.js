@@ -16,7 +16,7 @@ MainMenu = (function(){
 			btn.textContent = Collection[i].path;
 			btn.obj = Collection[i];
 			btn.onclick = function(){
-				APP.changeState(new GamePage(this.obj.path));
+				APP.changeState(new GamePage(this.obj));
 			}
 			this.DOM.appendChild(btn);
 		};
@@ -32,7 +32,7 @@ MainMenu = (function(){
 		},
 		hide:function(){
 			this.DOM.remove();
-			console.log('hided!');
+			console.log('MENU hided!');
 		}
 	}
 	return MainMenu;

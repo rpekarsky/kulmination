@@ -6,7 +6,7 @@ var APP = {
 		this.changeState(new MainMenu());
 	},
 	changeState:function(state){
-		console.log(state.text);
+		// console.log(state.text);
 		if(this.currentState){
 			this.currentState.hide();
 		}

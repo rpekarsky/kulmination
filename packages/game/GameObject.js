@@ -1,13 +1,15 @@
 
 var GameObject = (function(){
-	function GameObject(parameters){
+	function GameObject(parameters,game){
+		this.game = game;
+		// console.log('game',game);
 		this.collided = false;
 		this.delta = parameters.delta || 0;
 		this.height = parameters.height || 0;
 		this.position = parameters.position || 0;
 		this.timestamp = parameters.timestamp || 0;
 		this.rotation = parameters.rotation || 0;
-		this.radius = tube.radius-this.height;
+		this.radius = this.game.tube.radius-this.height;
 		this.debug = parameters.debug || false;
 
 		this.obj = new THREE.Object3D();
@@ -15,9 +17,10 @@ var GameObject = (function(){
 		this.pivotRotate = new THREE.Object3D();
 		this.pivotPosition = new THREE.Object3D();
 
-		this.calculatedPosition = tube.spline.getPointAt(this.position/tube.length);
-		this.calculatedDirection = tube.spline.getTangentAt(this.position/tube.length);
-		this.radius = tube.radius-this.height;
+		// console.log(this.position);
+		this.calculatedPosition = this.game.tube.spline.getPointAt( this.position/this.game.tube.length );
+		this.calculatedDirection = this.game.tube.spline.getTangentAt( this.position/this.game.tube.length );
+		this.radius = this.game.tube.radius-this.height;
 		// this.update();
 	}
 	GameObject.prototype.init = function() {
@@ -34,12 +37,13 @@ var GameObject = (function(){
 		if(this.debug){
 			this.debugHelper = new DebugHelper(this);
 		}
+		this.added = false;
 		
 	};
 
 	GameObject.prototype.update = function() {
-		this.calculatedPosition = tube.spline.getPointAt(this.position/tube.length);
-		this.calculatedDirection = tube.spline.getTangentAt(this.position/tube.length);
+		this.calculatedPosition = this.game.tube.spline.getPointAt(this.position/this.game.tube.length);
+		this.calculatedDirection = this.game.tube.spline.getTangentAt(this.position/this.game.tube.length);
 		this.calculatedDirection = new THREE.Vector3(this.calculatedDirection.x,this.calculatedDirection.y,this.calculatedDirection.z);
 
 		this.pivotPosition.position = this.calculatedPosition;
@@ -60,11 +64,15 @@ var GameObject = (function(){
 	}
 	
 	GameObject.prototype.add = function(){
-		scene.add(this.pivotPosition);
+		if(!this.added){
+			this.game.scene.add(this.pivotPosition);
+			this.added = true;
+		}
 	};
 
 	GameObject.prototype.remove = function(){
-		scene.remove(this.pivotPosition);
+		console.log('remove')
+		this.game.scene.remove(this.pivotPosition);
 	};
 
 	GameObject.prototype.collideOffCallback = function(){
@@ -74,7 +82,7 @@ var GameObject = (function(){
 	}
 
 	GameObject.prototype.testPassed = function() {
-		var delta = getADistance(this.rotation,angle,360);
+		var delta = getADistance(this.rotation,this.game.angle,360);
 		if(this.debug){
 			if(delta < this.delta/2){
 				if(!this.debugHelper.collided) this.debugHelper.setActive();
@@ -83,16 +91,15 @@ var GameObject = (function(){
 			}
 		}
 
-		if(MPlayer.audio.currentTime*1000 >= this.timestamp){
+		// console.log(this,'testPassed',this.game.time,this.timestamp);
+		if(this.game.time >= this.timestamp){
 			return true;
-			
-			
 		}
 		return false;
 	};
 
 	GameObject.prototype.testCollide = function() {
-		var delta = getADistance(this.rotation,angle,360);
+		var delta = getADistance(this.rotation,this.game.angle,360);
 		if(delta < this.delta/2){
 			if(!this.collided){
 				this.collided = true;
