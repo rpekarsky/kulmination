@@ -14,45 +14,63 @@
 	}
 	canvas{
 		display: block;
-		width: 100% !important;
-		height: 100% !important;
+		/*width: 100% !important;*/
+		/*height: 100% !important;*/
 		margin:0;
 		padding: 0;
 	}
-
-	.score-hud{
-        font-size: 20pt;
-        font-family: ubuntu;
-        font-weight: bold;
-		color: white;
-		text-shadow: 5px 5px 10px rgba(0,0,0,0.3), 2px 2px 0px rgba(0,0,0,0.7), 1px 1px rgba(0,0,0,0.8);
+	.MainMenu button{
+		display: block;
+		width: 100%;
+		line-height: 26px;
+		font-size: 18px;
+		text-align: left;
 	}
+
+	.page{
+		position: absolute;
+		max-height: 100%;
+		overflow: auto;
+		top: 0;
+	}
+	.page button{
+		line-height: 26px;
+		font-size: 18px;
+		text-align: left;
+	}
+	.controls {
+		position: absolute;
+		width: 100%;
+		height: 50%;
+		bottom: 0;
+	}
+	.controls .control {
+		width: 20%;
+		height: 100%;
+		position: absolute;
+		box-shadow: 0px 0px 5px black;
+	}
+
+	.control.left {
+		left: 0;
+	}
+
+	.control.right {
+		right: 0;
+	}
+
 </style>
 </head>
-<body>
+<body>	
+
 	<script type="text/javascript" src='js/dat.gui.min.js'></script>
 	<script type="text/javascript" src="js/three.min.js"></script>
 	<script type="text/javascript" src="js/CurveExtras.js"></script>
 	<script src="js/renderers/CSS3DRenderer.js"></script>
-	
-	<!-- 
-	<script type="text/javascript" src="luckystar_beats_local.js"		></script> 
-	<script type="text/javascript" src="nightwish_beats.js"		></script>  
-	<script type="text/javascript" src="luckystar_beats.js"		></script> 
-	<script type="text/javascript" src="korn_beats.js"			></script>
-	<script type="text/javascript" src="rise_beats.js"		></script>  
-	<script type="text/javascript" src="nightwish_imagenaerum_beats.js"		></script>  
-	<script type="text/javascript" src="30sec_beats.js"			></script>     
-	<script type="text/javascript" src="caramell_beats.js"		></script>    
-	<script type="text/javascript" src="muse_beats.js"		></script>    
-	<script type="text/javascript" src="soulshop_beats.js"		></script>
-	<script type="text/javascript" src="Nickelback_beats.js"	></script> 
-	<script type="text/javascript" src="lie_beats.js"			></script>
-	<script type="text/javascript" src="dirt_beats.js"			></script> 
-	<script type="text/javascript" src="pushnoy_beats.js"		></script>
-	<script type="text/javascript" src="prodigy_beats.js"		></script>
-	<script type="text/javascript" src="jim_beats.js"			></script> 
-	-->
+
+	<script type="text/javascript" src="AudioContext.js"></script>
+	<script type="text/javascript" src="Analyser.js"></script>
+	<script type="text/javascript" src="AnalyserProcessor.js"></script>
 
 	<script type="text/javascript" src="renderer.js"></script>
 	<script type="text/javascript" src="GameObject.js"></script>
@@ -61,20 +79,18 @@
 	<script type="text/javascript" src="TubeGeometry.js"></script>
 	<script type="text/javascript" src="utils.js"></script>
 
-	<!--
-	<script type="text/javascript" src="gui.js"></script>
-	<script type="text/javascript" src="loop.js"></script>
-	<script type="text/javascript" src="hud.js"></script> 
-	-->
-
 	<script type="text/javascript" src="camera.js"></script>
 	<script type="text/javascript" src="player.js"></script>
 	<script type="text/javascript" src="obstacles.js"></script>
 	<script type="text/javascript" src="tube.js"></script>
 
-	
-
 	<script type="text/javascript" src="controls.js"></script>
-	<script type="text/javascript" src="initialize.js"></script>
+
+	<script type="text/javascript" src="MPlayer.js"></script>
+	<script type="text/javascript" src="Collection.js"></script>
+	<script type="text/javascript" src="MainMenu.js"></script>
+	<script type="text/javascript" src="GamePage.js"></script>
+	<script type="text/javascript" src="Game.js"></script>
+	<script type="text/javascript" src="app.js"></script>
 </body>
 </html>

@@ -211,7 +211,8 @@ Collection = [
 {path:'Ширяева Анна (Шмендра) - Королева осени Элис.mp3'},
 ]
 
-var root = '/home/roman/Documents/audio3/music/';
+// var root = '/home/roman/Documents/audio3/music/';
+var root = '/sdcard/Music/';
 for (var i = 0; i < Collection.length; i++) {
 	Collection[i].path = root+Collection[i].path;
 };
