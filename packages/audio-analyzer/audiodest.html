@@ -1,0 +1,232 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="description" content="bug"/>
+<style type="text/css">
+
+button{
+	display: block;
+	width: 100%;
+	height: 40px;
+}
+
+</style>
+</head>
+<body>	
+<script>
+
+var context, audio, source, destination, analiser, loop, connect, frecData, log, logDOM, outputElementDOM, playButton, connectButton;
+
+playButton = document.createElement('button');
+playButton.textContent = 'play';
+document.body.appendChild(playButton);
+
+
+connectButton = document.createElement('button');
+connectButton.textContent = 'connect';
+document.body.appendChild(connectButton);
+
+logDOM = document.createElement('pre');
+document.body.appendChild(logDOM);
+
+outputElementDOM = document.createElement('div'); document.body.appendChild(outputElementDOM);
+
+context = new webkitAudioContext();
+audio = new Audio();
+
+log = function(str){
+	logDOM.textContent = logDOM.textContent + str + '\n';
+}
+
+
+connect = function(){
+	source = context.createMediaElementSource(audio);
+	analiser = context.createAnalyser();
+	destination = context.destination;
+	frecData = new Uint8Array(analiser.frequencyBinCount);
+
+
+	//connection
+	source.connect(analiser);
+	analiser.connect(destination);
+	loop();
+}
+
+loop = function(){
+	analiser.getByteFrequencyData(frecData);
+  	var temp = '';
+  	for (var i = 0; i < 10; i++) {
+  		temp += frecData[i] + '\n';
+  	};
+
+  	outputElementDOM.textContent = temp;
+	window.webkitRequestAnimationFrame(loop);
+}
+
+
+
+// if(audio.readyState < 3){
+// 	audio.addEventListener('canplay', connect);
+// } else {
+// 	connect();
+// }
+
+audio.src = '/sdcard/Music/10. A Modern Myth.mp3';
+// audio.src = '10. A Modern Myth.mp3';
+
+connectButton.onclick = function(){
+	log('connecting...');
+	connect();
+	log('connected');
+}
+
+playButton.onclick = function(){
+	audio.play();
+	log('play');
+}
+
+</script>
+</body>
+</html>
+
+<noscript>
+
+
+
+	var AC = (function(){
+		var ac = window.AudioContext || window.webkitAudioContext;
+		return new ac();
+	})();	
+
+	// создаем аудио контекст
+	var context = AC; //
+	// переменные для буфера, источника и получателя
+	var buffer, source, destination; 
+
+
+	// функция для подгрузки файла в буфер
+	var loadSoundFile = function(url) {
+	  // делаем XMLHttpRequest (AJAX) на сервер
+	  var startLoading = Date.now();
+	  var xhr = new XMLHttpRequest();
+	  xhr.open('GET', url, true);
+	  xhr.responseType = 'arraybuffer'; // важно
+	  xhr.onload = function(e) {
+	  	console.log('loaded');
+	  	DOM.textContent = 'loaded in '+ (Date.now()-startLoading);
+	    // декодируем бинарный ответ
+	    var startDecode = Date.now();
+	    context.decodeAudioData(this.response,
+	    function(decodedArrayBuffer) {
+	      // получаем декодированный буфер
+	      buffer = decodedArrayBuffer;
+	      console.log('decoded');
+	      DOM.textContent = 'decoded in '+ (Date.now()-startDecode);
+	      // play();
+	    }, function(e) {
+	      console.log('Error decoding file', e);
+	    });
+	  };
+	  DOM.textContent = 'loading..';
+
+	  xhr.send();
+	}
+
+	var au;
+	var loadAudioElementFile = function(url) {
+
+		au = document.querySelector('audio');
+		au.addEventListener('canplaythrough',function(){
+			console.log('canplaythrough');
+			playAudioEl();
+		});
+		// au.src = url;
+	}
+
+	// функция начала воспроизведения
+	var play = function(){
+	  
+	  source = context.createBufferSource();
+	  source.buffer = buffer;
+	  destination = context.destination;
+	  analiser = context.createAnalyser();
+	  analiser.fftSize = 64;
+	  frecData = new Uint8Array(analiser.fftSize/2);
+	  jsnode = context.createScriptProcessor(2048, 1, 1);
+	  jsnode.onaudioprocess = function(){
+	  	analiser.getByteFrequencyData(frecData);
+	  	var temp = '';
+	  	for (var i = 0; i < frecData.length; i++) {
+	  		temp += frecData[i] + ' ';
+	  	};
+	  	
+	  	// console.log(frecData);
+	  	DOM.textContent = temp;
+	  }
+
+	  
+	  source.connect(analiser);
+	  analiser.connect(jsnode);
+	  jsnode.connect(destination);
+
+	  source.start(0);
+	}
+
+	// функция начала воспроизведения
+	var playAudioEl = function(){
+	  
+	  source = context.createMediaElementSource(au);
+	  destination = context.destination;
+	  gain = context.createGain();
+	  gain.gain.value = 1;
+	  analiser = context.createAnalyser();
+	  analiser.fftSize = 64;
+	  frecData = new Uint8Array(analiser.fftSize/2);
+
+	  var letsDraw = function(){
+	  	analiser.getByteFrequencyData(frecData);
+	  	var temp = 'time: ' + au.currentTime + ', volume: ' + au.volume + ', ';
+	  	for (var i = 0; i < frecData.length; i++) {
+	  		temp += frecData[i] + ' ';
+	  	};
+	  	
+	  	// console.log(frecData);
+	  	DOM.textContent = temp;
+	  	window.webkitRequestAnimationFrame(letsDraw);
+	  }
+	  window.webkitRequestAnimationFrame(letsDraw);
+	  // letsDraw();
+
+	  // jsnode = context.createScriptProcessor(2048, 1, 1);
+	  // jsnode.onaudioprocess = function(){
+	  // }
+		
+
+
+	  
+	  source.connect(gain);
+	  gain.connect(analiser);
+	  // analiser.connect(jsnode);
+	  // jsnode.connect(destination);
+	  analiser.connect(destination);
+
+
+	  au.play();
+	  // source.start(0);
+	}
+
+	// функция остановки воспроизведения
+	var stop = function(){
+	  source.stop(0);
+	}
+
+
+	var root = '/home/roman/Documents/audio3/music/';
+	var root = '/sdcard/Music/';
+	// loadSoundFile(root+'10. A Modern Myth.mp3');
+	// loadSoundFile(root+'example.mp3');
+
+	// loadAudioElementFile(root+'example.mp3');
+	loadAudioElementFile(root+'10. A Modern Myth.mp3');
+</noscript>

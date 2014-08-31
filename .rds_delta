@@ -1,6 +1,10 @@
 #delete
 #add
 #modify
+res/wgt/Analyser.js
+res/wgt/AnalyserProcessor.js
+res/wgt/Collection.js
+res/wgt/Game.js
 res/wgt/author-signature.xml
-res/wgt/initialize.js
+res/wgt/index.html
 res/wgt/signature1.xml

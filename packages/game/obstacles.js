@@ -7,11 +7,15 @@ function Obstacles(game){
 	this.game = game;
 	this.curCollideTestNum = 0; 
 	this.screen = 30; 
-	this.screenTime = this.game.duration/60;
+	this.screenTime = 2000;//this.game.duration/60;
 	this.objects = [];
+	this.currentUpdateCount = 0;
+	this.Coin.prototype.count = 0;
+	this.RotateObstacle.prototype.count = 0;
 }
 Obstacles.prototype= {
 	update:function () {
+		
 		while(this.objects[this.curCollideTestNum] && this.objects[this.curCollideTestNum].testPassed()){
 			this.objects[this.curCollideTestNum].testCollide();
 			this.curCollideTestNum++;
@@ -20,18 +24,20 @@ Obstacles.prototype= {
 		}
 		for (var i = this.curCollideTestNum; i < this.curCollideTestNum+this.screen; i++) {
 			if(i<this.objects.length){
-				this.objects[i].update();			
+				this.objects[i].update();	
 			}
 		};
 	},
 	update:function () {
 		var iter = 0;
 		var collideIter = 0;
+		this.currentUpdateCount = 0;
 		while(this.objects[this.curCollideTestNum+iter]){
 			var beat = this.objects[this.curCollideTestNum+iter];
 			if(beat.timestamp > this.game.time+this.screenTime) break;
 			beat.add();
 			beat.update();
+			this.currentUpdateCount++;
 			if(beat.testPassed()){
 				beat.testCollide();
 				collideIter++;
@@ -60,30 +66,46 @@ Obstacles.prototype= {
 	},
 
 	createCoin:function(params){
-		var obs = new this.Coin(params,this.game);
+		if(this.CoinPool && this.CoinPool.length){
+			var obs = this.CoinPool.shift();
+			obs.init(params);
+			// console.log('create from pool');
+		} else {
+			var obs = new this.Coin(params,this.game);
+		}
 		obs.update();
 		this.objects.push(obs);
 		return obs;
 	},
 	createRotate:function(params){
-		var obs = new this.RotateObstacle(params,this.game);
+		if(this.RotatePool && this.RotatePool.length){
+			var obs = this.RotatePool.shift();
+			obs.init(params);
+			// console.log('create from pool');
+		} else {
+			var obs = new this.RotateObstacle(params,this.game);
+		}
 		obs.update();
 		this.objects.push(obs);
 		return obs;
 	},
 	RotateObstacle:(function(){
-		var parent = GameObject.prototype;
+		var parent = GameObjectStatic.prototype;
 		var BoxGeometry = new THREE.BoxGeometry(1,1,1);
 		function RotateObstacle (parameters,game) {
 			this.game = game;
+			
+			this.game.obstacles.RotatePool = this.game.obstacles.RotatePool || [];
+			this.pool = this.game.obstacles.RotatePool;
+
 			parameters.height = 0;
 			parameters.delta = 30;
 			parameters.debug = false;
 			parameters.rotation = parameters.startRotation;
-			parent.constructor.call(this,parameters,this.game);
-
 			this.speed = parameters.speed;
 			this.calculatedSpeed = this.speed/60;
+
+			parent.constructor.call(this,parameters,this.game);
 
 			this.mesh = new THREE.Mesh(BoxGeometry,DangerMaterial);
 			
@@ -92,13 +114,21 @@ Obstacles.prototype= {
 			this.mesh.scale.set(this.game.tube.radius*this.game.tube.outerTubeRadiusCoeff,12,4);
 
 			this.obj.add(this.mesh);
+			RotateObstacle.prototype.count++;
 
-			this.init();
+			this.init(parameters);
 		}
 		RotateObstacle.prototype = Object.create(parent);
-		RotateObstacle.prototype.init = function(){
+		RotateObstacle.prototype.init = function(parameters){
 
-			parent.init.call(this);
+			parameters.height = 0;
+			parameters.delta = 30;
+			parameters.debug = false;
+			parameters.rotation = parameters.startRotation;
+			this.speed = parameters.speed;
+			this.calculatedSpeed = this.speed/60;
+
+			parent.init.call(this,parameters);
 
 			// Obstacles.objects.push(this);
 		};
@@ -113,13 +143,17 @@ Obstacles.prototype= {
 			this.game.gameCam.fovTo = 60;
 			this.game.gameCam.fovSpeed = 0.02;
 			this.game.SCORE -= 250;
+			MPlayer.jamm();
 			// scoreHud.setScore(SCORE);
 		};
+
 		RotateObstacle.prototype.collideOffCallback = function() {
 			parent.collideOffCallback.call(this);
 			// colorHSL.h -= 0.3;
 			this.game.gameCam.shakeValue += 0.2;
 			this.game.SCORE += 50;
+			MPlayer.jamm();
+
 			// scoreHud.setScore(SCORE);
 			// scoreHud.setScore(SCORE);
 
@@ -128,6 +162,21 @@ Obstacles.prototype= {
 			// colorHSL.l -= 0.1;
 			// colorHSL.s = 1//colorHSLMain.s+0.2;
 		};
+
+		RotateObstacle.prototype.add = function(){
+			for (var i = 0; i < this.pool.length; i++) {
+				if (this.pool[i] == this){
+					this.pool.splice(i,1);
+					break;
+				}
+			};
+			parent.add.call(this);
+		}
+
+		RotateObstacle.prototype.remove = function(){
+			parent.remove.call(this);
+			this.pool.push(this);
+		}
 		RotateObstacle.prototype.update = function(){
 			this.rotation += this.calculatedSpeed;
 			parent.update.call(this);	
@@ -152,33 +201,48 @@ Obstacles.prototype= {
 
 		var parent = GameObject.prototype;
 		function Coin (parameters,game) {
+			// console.log('new Coin');
 			this.game = game;
+			this.mesh = new THREE.Mesh(CoinGeometry,CoinMaterial);
+			this.mesh.rotation.z = -5/2*TO_RADIANS;
+			this.meshColor = new THREE.Mesh(CoinColorGeometry,
+				(this.big)?CoinBigColorMaterial:CoinColorMaterial
+				);
+
+			this.game.obstacles.CoinPool = this.game.obstacles.CoinPool || [];
+			this.pool = this.game.obstacles.CoinPool;
+
+			// parameters.radius = 30;
 			parameters.height = this.game.tube.radius;
 			parameters.delta = 45;
 			parameters.debug = false;
 			parameters.rotation = parameters.startRotation;
 			this.big = parameters.big || false;
 			this.calculatedSpeed = parameters.speed/60;
+
 			parent.constructor.call(this,parameters,this.game);
 
-			
-			this.mesh = new THREE.Mesh(CoinGeometry,CoinMaterial);
-			this.mesh.rotation.z = -5/2*TO_RADIANS;
-			this.meshColor = new THREE.Mesh(CoinColorGeometry,
-				(this.big)?CoinBigColorMaterial:CoinColorMaterial
-				);
-			
 			this.obj.add(this.mesh);
 			this.obj.add(this.meshColor);
 			this.obj.rotation.z = 180*TO_RADIANS - CoinDelta/2*TO_RADIANS;
 			// this.obj.z = -tubeRadius;
 			this.obj.scale.set(1,1,8);
-
-			this.init();
+			Coin.prototype.count++;
+			this.init(parameters);
 		}
-		Coin.prototype = Object.create(GameObject.prototype);
-		Coin.prototype.init = function(){
-			parent.init.call(this);
+		Coin.prototype = Object.create(parent);
+		Coin.prototype.count = 0;
+		Coin.prototype.init = function(parameters){
+			// this.position = parameters.position || 0;
+
+			parameters.height = this.game.tube.radius;
+			parameters.delta = 45;
+			parameters.debug = true;
+			parameters.rotation = parameters.startRotation;
+			
+
+			this.meshColor.material = CoinColorMaterial;
+			parent.init.call(this,parameters);
 
 			// Obstacles.objects.push(this);
 			
@@ -191,7 +255,6 @@ Obstacles.prototype= {
 			// colorHSLMain.h = (colorHSLMain.h+0.1)%1;//Math.random();
 			// colorHSL.l -= 0.1;
 			this.meshColor.material = CoinCollectedMaterial;
-
 			this.game.gameCam.fovTo += 5;
 			this.game.gameCam.fovSpeed = 0.02
 			this.game.gameCam.shakeValue += 0.02;
@@ -202,6 +265,22 @@ Obstacles.prototype= {
 		Coin.prototype.update = function(){
 			parent.update.call(this);	
 			// this.rotation += this.calculatedSpeed;
+		};
+
+		Coin.prototype.add = function(){
+			if(!this.added){
+				for (var i = 0; i < this.pool.length; i++) {
+					if (this.pool[i] == this){
+						this.pool.splice(i,1);
+						break;
+					}
+				};
+			}
+			parent.add.call(this);
+		};
+		Coin.prototype.remove = function(){
+			this.pool.push(this);
+			parent.remove.call(this);
 		};
 		return Coin;
 	})(),

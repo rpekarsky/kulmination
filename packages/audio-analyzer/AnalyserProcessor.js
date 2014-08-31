@@ -16,13 +16,16 @@ var AnalyserProcessor = (function(){
 		this.init();
 	}
 	AnalyserProcessor.prototype.init = function() {
+
 		this.analyser.register(this);
 
+		
 		this.selectedFrec = this.options.maxfreq - this.options.minfreq;
+		// console.log(selectedFrec);
 		// this.barsCount = this.options.maxfreq - this.options.minfreq;
 		this.barsCount = this.analyser.analyser.frequencyBinCount;
 		// console.log(this.barsCount);
-		// this.timeDomain = new Uint8Array(this.barsCount);
+		// this.workingData = new Uint8Array(this.barsCount);
 
 		this.AvrVHystoryScreen = 50;
 		this.AvrVHystory = new Uint8Array(this.AvrVHystoryScreen);
@@ -53,12 +56,12 @@ var AnalyserProcessor = (function(){
 		this.prevIsBeat = false;
 		this.callback = undefined;
 		this.velocityTreshold = 100;
-		this.timeDomain = 0;
+		this.workingData = 0;
 	};
-	AnalyserProcessor.prototype.ondata = function(dataDomain,dataFrec) {
-		// console.log('working...',dataDomain[0]);
+	AnalyserProcessor.prototype.ondata = function(dataDomain,dataFrec,e) {
 		this.timeData = dataDomain;
 		this.freqData = dataFrec;
+		// console.log('working...',e.playbackTime);
 		// console.log(dataFrec)
 		// this.timeData = dataFrec;
 		this.isBeat = false;
@@ -69,7 +72,7 @@ var AnalyserProcessor = (function(){
 		this.PrevAvrHystorySplashRes = this.AvrHystorySplashRes;
 		// this.analyser.getByteTimeDomainData(this.timeData);
 
-		this.timeDomain = 0;
+		this.workingData = 0;
 		var timeDomainAvg = 0;
 
 		this.PrevAvrVHystoryRes = 0;
@@ -77,16 +80,17 @@ var AnalyserProcessor = (function(){
 		
 
 		for (var i = 0; i < this.selectedFrec; i++) {
-			// this.timeDomain += this.timeData[this.options.minfreq+i];
-			this.timeDomain += Math.abs(this.timeData[i]-128);
+			// this.workingData += this.timeData[this.options.minfreq+i];
+			// this.workingData += Math.abs(this.timeData[i]-128);
+			this.workingData += Math.abs(this.freqData[this.options.minfreq+i]);
 		};
-		this.timeDomain /= this.selectedFrec;
-		// this.timeDomain = 128/2;
-  		// console.log(this.timeDomain);
+		this.workingData /= this.selectedFrec;
+		// this.workingData = 128/2;
+  		// console.log(this.workingData);
 
 		this.AvrVHystoryRes = 0;
 		var lastAvrVHystory = moveHistory(this.AvrVHystory);
-		this.AvrVHystory[this.AvrVHystoryScreen-1] = this.timeDomain;
+		this.AvrVHystory[this.AvrVHystoryScreen-1] = this.workingData;
 		for (var i = 0; i < this.AvrVHystoryScreen; i++) {
 			this.AvrVHystoryRes += this.AvrVHystory[i]/this.AvrVHystoryScreen;
 		};
@@ -94,14 +98,14 @@ var AnalyserProcessor = (function(){
 
 		this.AvrHystorySplashRes = 0;
 		var lastAvrHystorySplash = moveHistory(this.AvrHystorySplash);
-		this.AvrHystorySplash[this.AvrHystorySplashScreen-1] = this.timeDomain;
+		this.AvrHystorySplash[this.AvrHystorySplashScreen-1] = this.workingData;
 		for (var i = 0; i < this.AvrHystorySplashScreen; i++) {
 			this.AvrHystorySplashRes += this.AvrHystorySplash[i]/this.AvrHystorySplashScreen;
 		};
 
 		this.SmoothingRes = 0;
 		var lastSmoothing = moveHistory(this.Smoothing);
-		this.Smoothing[this.SmoothingScreen-1] = this.timeDomain;
+		this.Smoothing[this.SmoothingScreen-1] = this.workingData;
 		for (var i = 0; i < this.SmoothingScreen; i++) {
 			this.SmoothingRes += this.Smoothing[i]/this.SmoothingScreen;
 		};
@@ -144,10 +148,10 @@ var AnalyserProcessor = (function(){
 			if(this.bigVelocityScaled>this.velocityTreshold){
 				// bigBeatIntense = 255;
 				this.isBeat2 = true;
-				if(this.callback) this.callback(MPlayer.audio.currentTime*1000,2);
+				if(this.callback) this.callback(MPlayer.getAnalise()*MPlayer.analiseSpeed,2);
 				// new Beat(Math.floor(MPlayer.audio.currentTime*1000),2);
 			} else {
-				if(this.callback) this.callback(MPlayer.audio.currentTime*1000,1);
+				if(this.callback) this.callback(MPlayer.getAnalise()*MPlayer.analiseSpeed,1);
 				// new Beat(Math.floor(MPlayer.audio.currentTime*1000),1)
 				this.isBeat1 = true;
 			}
@@ -155,6 +159,8 @@ var AnalyserProcessor = (function(){
 		
 		this.prevIsBeat = this.isBeat;
 		// this.drawer.draw(this);
+
+
 	};
 	return AnalyserProcessor;
 })();

@@ -3,6 +3,8 @@ var APP = {
 	currentState: undefined,
 	init:function(){
 		console.log('init');
+    	Controls.init();
+		Renderer.init();
 		this.changeState(new MainMenu());
 	},
 	changeState:function(state){
@@ -15,4 +17,9 @@ var APP = {
 	}
 }
 
-APP.init();
+
+document.onreadystatechange = function () {
+    if (document.readyState == "complete") {
+		APP.init();
+   	}
+}

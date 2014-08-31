@@ -1,10 +1,11 @@
 GamePage = (function(){
 	function GamePage(params){
-		if ( GamePage.prototype._singletonInstance ) {
-			GamePage.prototype._singletonInstance.init(params);
-			return GamePage.prototype._singletonInstance;
+		if ( GamePage.prototype.instance ) {
+			GamePage.prototype.instance.init(params);
+			return GamePage.prototype.instance;
 		}
-		GamePage.prototype._singletonInstance = this;
+		GamePage.prototype.instance = this;
+		GamePage.instance = this;
 
 		this.text = 'GamePage';
 		this.DOM = document.createElement('div');
@@ -13,6 +14,7 @@ GamePage = (function(){
 		this.back = document.createElement('button');
 		this.back.textContent = 'back';
 		this.back.onclick = APP.changeState.bind(APP,new MainMenu());
+		// this.back.onclick = this.back.ontouchstart
 		this.DOM.appendChild(this.header);
 		this.DOM.appendChild(this.back);
 		this.init(params);
@@ -22,9 +24,13 @@ GamePage = (function(){
 			// MPlayer.init(params);
 			this.DOM.className = 'page GamePage';
 			this.header.textContent = params.path;
+			this.back.style.display = 'none';
 			// console.log(this.name);
 			this.game = new Game(params);
 			return this;
+		},
+		ready:function(){
+			this.back.style.display = 'inline-block';
 		},
 		show:function(){
 			console.log("SHOW!");
@@ -33,8 +39,9 @@ GamePage = (function(){
 		},
 		hide:function(){
 			this.game.close();
-			MPlayer.stop();
-			this.DOM.remove();
+			// MPlayer.stop();
+			// this.DOM.remove();
+			this.DOM.parentNode.removeChild(this.DOM);
 			console.log('hided!');
 		}
 	}
