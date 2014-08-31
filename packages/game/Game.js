@@ -188,16 +188,8 @@ Game.prototype={
 		this.duration = Math.floor(MPlayer.duration*1000);
 		console.log("INIT!",this.duration);
 
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:64,maxfreq:512,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:800,maxfreq:1024,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:128,maxfreq:256,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:0,maxfreq:128,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:32,maxfreq:1024-256,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:0,maxfreq:1024,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:0,maxfreq:1024,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:0,maxfreq:128,analyser: this.analyser });
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.3),maxfreq:Math.floor(1024*0.6),analyser: this.analyser });
-		this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.0),maxfreq:Math.floor(1024*0.2),analyser: this.analyser });
+		// this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.0),maxfreq:Math.floor(1024*0.9),analyser: this.analyser });
+		this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.3),maxfreq:Math.floor(1024*0.7),analyser: this.analyser });
 
 		this.analyserProcessor.callback = this.onAddBeat.bind(this);
 

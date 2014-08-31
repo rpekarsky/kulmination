@@ -8,9 +8,9 @@ Tube = (function Tube(){
 		this.radius = 30;
 		this.outerTubeRadiusCoeff = 2.5;
 		var splinePoints = [];
-		// var splineRadius = this.game.duration/(Math.PI*2)*0.8;
+		var splineRadius = this.game.duration/(Math.PI*2)*0.8;
 		// var points = Math.floor(this.game.duration/1000/2);
-		var splineRadius = 36000/(Math.PI*2);
+		// var splineRadius = 36000/(Math.PI*2);
 		var points = 36;
 		for (var i = 0; i < points; i++) {
 			splinePoints.push(
