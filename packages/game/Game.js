@@ -11,7 +11,8 @@ var Game = function Game (params) {
 	this.scene.fog = new THREE.Fog( 0x0aac0f0, -150, 1150 ); //normal
 	this.scene.fog.color.setHSL(colorHSLMain.h,colorHSLMain.s,colorHSLMain.l);
 
-	this.analyser = new Analyser(2048);
+	this.analyser = new Analyser(256);
+	// this.analyser = new Analyser(32);
 
 	this.SCORE = 0;
 	this.tmpRot = 0;
@@ -32,7 +33,7 @@ var Game = function Game (params) {
 	this.time = 0;
 	this.musicPlayStarted = false;
 	this.duration = 0;
-	this.futureTime = 3;
+	this.futureTime = 0;
 	MPlayer.init(this.params.path,this.futureTime,this.init.bind(this));
 	
 
@@ -46,6 +47,7 @@ Game.prototype={
 		// console.log('add beat',time);
 		// return 0;
 
+		// var timestamp = Math.max(time-this.analyser.lastTime-100,0);
 		var timestamp = Math.max(time+100,0);
 		var pos = (this.tube.length/this.duration)*timestamp; // TODO
 		// this.obstacles.createCoin({
@@ -134,10 +136,11 @@ Game.prototype={
 		// this.analyser.onAnalyze();
 
 		if(!this.closed){
-			this.readControls();
-			this.gameCam.update();
-			this.player.update();
-			this.obstacles.update();
+			// this.analyser.onAnalyze();
+			// this.readControls();
+			// this.gameCam.update();
+			// this.player.update();
+			// this.obstacles.update();
 			// Renderer.DOMinfo.textContent = this.analyser.lastTime;
 			// if(this.obstacles.CoinPool && this.obstacles.RotatePool){
 				var debugInfo = '';
@@ -154,19 +157,17 @@ Game.prototype={
 
 				debugInfo += '\nanalize:' + this.analyser.lastTime 
 				debugInfo += '\nobj update:'+this.obstacles.currentUpdateCount;
-				Renderer.DOMinfo.textContent = debugInfo;
+				// Renderer.DOMinfo.textContent = debugInfo;
 			// }
 			
 			// if(this.musicPlayStarted){
-				this.render();
+				// this.render();
 			// }
-			webkitRequestAnimationFrame(this.loop);
+			// webkitRequestAnimationFrame(this.loop);
 		} else {
 			webkitCancelRequestAnimationFrame(this.loop);
 			webkitCancelAnimationFrame(this.loop);
-		}
-
-		
+		}	
 	},
 	readControls:function(){
 		if(Controls.leftPressed){
@@ -186,15 +187,20 @@ Game.prototype={
 	init:function(){
 		this.closed = false;
 		this.duration = Math.floor(MPlayer.duration*1000);
-		console.log("INIT!",this.duration);
+		console.log("INIT!");
 
-		// this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.0),maxfreq:Math.floor(1024*0.9),analyser: this.analyser });
-		this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.3),maxfreq:Math.floor(1024*0.7),analyser: this.analyser });
+		// this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(this.analyser.barsCount*0.0),maxfreq:Math.floor(this.analyser.barsCount*1),analyser: this.analyser,drawer:new Drawer() });
+		this.analyserProcessor = new AnalyserProcessor({minfreq:0,maxfreq:this.analyser.barsCount,analyser: this.analyser,drawer:new Drawer() });
+		// this.analyserProcessor = new AnalyserProcessor({minfreq:Math.floor(1024*0.3),maxfreq:Math.floor(1024*0.7),analyser: this.analyser });
 
 		this.analyserProcessor.callback = this.onAddBeat.bind(this);
 
+		// this.analyser.input(MPlayer.source);
+		// this.analyser.input(MPlayer.source);
 
-		MPlayer.source.connect(this.analyser.input);
+		MPlayer.source.connect(this.analyser.analyser);
+		// MPlayer.source.connect(this.analyser.scriptProc);
+		// console.log(this.analyser.analyser,MPlayer.source);
 	
 		this.tube = new Tube(this);
 		// this.tube.addPlates();
@@ -202,6 +208,7 @@ Game.prototype={
 		this.gameCam = new GameCamera(this);
 		this.player = new Player(this);
 		this.scene.add(this.tube.mesh);
+
 		Renderer.show();
 		Controls.show();
 		this.mainloop();

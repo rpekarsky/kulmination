@@ -8,27 +8,27 @@ Tube = (function Tube(){
 		this.radius = 30;
 		this.outerTubeRadiusCoeff = 2.5;
 		var splinePoints = [];
-		var splineRadius = this.game.duration/(Math.PI*2)*0.8;
-		// var points = Math.floor(this.game.duration/1000/2);
+		var splineRadius = this.game.duration/(Math.PI*2)*0.5;
+		var points = Math.floor(this.game.duration/3000);
 		// var splineRadius = 36000/(Math.PI*2);
-		var points = 36;
+		// var points = 36;
 		for (var i = 0; i < points; i++) {
 			splinePoints.push(
 				new THREE.Vector4(
 					Math.sin(Math.PI*2*i/points)*splineRadius,
 					Math.cos(Math.PI*2*i/points)*splineRadius,
-					(Math.random()*2-1)*splineRadius/160,
+					(Math.random()*2-1)*splineRadius/60,
 					this.radius*this.outerTubeRadiusCoeff));
 		};
 		var spline = new THREE.ClosedSplineCurve4(splinePoints);
 		this.spline = spline;
 		this.length = spline.getLength();
 
-		var tubeGeom = new THREE.TubeGeometry(spline,Math.floor(this.length/128), 16, true, false);
+		var tubeGeom = new THREE.TubeGeometry(spline,Math.floor(this.length/128), 24, true, false);
 		var tubeMaterial = new THREE.MeshBasicMaterial( { color: 0xececec	, wireframe:false, transparent: false, side:1} );
 		this.mesh = new THREE.Mesh(tubeGeom,tubeMaterial);
-		
 	}
+	
 	Tube.prototype={
 		BgPlate:(function(){
 			var PlateGeom = new THREE.PlaneGeometry(10,10);

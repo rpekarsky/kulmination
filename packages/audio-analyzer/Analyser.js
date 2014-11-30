@@ -9,30 +9,39 @@ var Analyser = (function(){
 	function Analyser(fftSize){
 		this.fftSize = fftSize || 2048;
 		this.context = AC;
-		this.scriptProc = AC.createScriptProcessor(1024, 0, 1);
 		this.analyser = AC.createAnalyser();
-		this.analyser.connect(this.scriptProc);
-		this.scriptProc.connect(AC.destination);
-		this.output = this.scriptProc;
-		this.input = this.analyser;
+		// this.scriptProc = AC.createScriptProcessor(1024, 2, 2);
+		// this.analyser.connect(AC.destination);
+		// this.scriptProc.connect(AC.destination);
+		// this.output = this.scriptProc;
+		// this.input = this.analyser;
 		this.analyser.fftSize = this.fftSize;
-		this.analyser.smoothingTimeConstant = 0;
+		this.analyser.smoothingTimeConstant = 0.5;
 		this.processors = [];
+		this.loop = this.onAnalyze.bind(this);
 		this.init();
+		// setInterval(this.onAnalyze.bind(this),0);
 	}
 
-	// 440*Math.pow(Math.pow(2,0),1/12)
+	// Analyser.prototype.input = function(source) {
+	// 	source.connect(this.analyser);
+	// 	// this.analyser.connect(this.scriptProc);
+	// };
+
 	Analyser.prototype.init = function() {
+		console.log('analiser init');
 		this.barsCount = this.analyser.frequencyBinCount;
-		this.scriptProc.onaudioprocess = this.onAnalyze.bind(this);
 		this.timeData = new Uint8Array(this.barsCount);
 		this.frecData = new Uint8Array(this.barsCount);
-		// setInterval(this.onAnalyze.bind(this),10);
+		this.onAnalyze();
+		// setInterval(this.onAnalyze.bind(this),20);
+		// this.scriptProc.onaudioprocess = this.onAnalyze.bind(this);
 	};
 
 	Analyser.prototype.destroy = function(analyserProcessor) {
-		this.analyser.disconnect(this.scriptProc);
-		this.scriptProc.disconnect(AC.destination);
+		console.log('Analyser destroy');
+		// this.analyser.disconnect(this.scriptProc);
+		// this.scriptProc.disconnect(AC.destination);
 	};
 	Analyser.prototype.register = function(analyserProcessor) {
 		this.processors.push(analyserProcessor);
@@ -48,18 +57,29 @@ var Analyser = (function(){
 
 	Analyser.prototype.onAnalyze = function(e) {
 		// console.log('onAnalyze');
-  		this.analyser.getByteTimeDomainData(this.timeData);
+  		// this.analyser.getByteTimeDomainData(this.timeData);
   		this.analyser.getByteFrequencyData(this.frecData);
   		// YAYAYA.textContent = this.frecData[14];
   		// console.log(this.timeData[0]);
   		// setTimeout
+  		
+  		this.lastTime = Date.now() - this.lastAnalizeTime;
+  		this.lastAnalizeTime = Date.now();
+
   		for (var i = 0; i < this.processors.length; i++) {
   			this.processors[i].ondata(this.timeData,this.frecData);
   		};
-
-  		this.lastTime = Date.now() - this.lastAnalizeTime;
-  		this.lastAnalizeTime = Date.now();
+  		// if(!this.lastTime){
+  		// 	this.lastTime = 0;
+  		// }
+  		// var timeout = 100-this.lastTime;
+  		// if(timeout < 0 ){
+  		// 	timeout = 0;
+  		// }
+  		
+  		// setTimeout(this.loop,timeout);
   		// console.log('onAnalyze End');
+  		webkitRequestAnimationFrame(this.loop);
 	};
 
 	return Analyser;

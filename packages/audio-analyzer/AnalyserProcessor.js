@@ -42,7 +42,7 @@ var AnalyserProcessor = (function(){
 		this.BigBeatEnergy = new Uint8Array(this.BigBeatEnergyScreen);
 		this.BigBeatEnergyRes = 0;
 
-		this.SmoothingScreen =3;//5
+		this.SmoothingScreen =5;//5
 		this.Smoothing = new Uint8Array(this.SmoothingScreen);
 		this.SmoothingRes = 0;
 
@@ -61,6 +61,8 @@ var AnalyserProcessor = (function(){
 	AnalyserProcessor.prototype.ondata = function(dataDomain,dataFrec,e) {
 		this.timeData = dataDomain;
 		this.freqData = dataFrec;
+		this.drawer.draw(this);
+		return ;
 		// console.log('working...',e.playbackTime);
 		// console.log(dataFrec)
 		// this.timeData = dataFrec;
@@ -81,12 +83,15 @@ var AnalyserProcessor = (function(){
 
 		for (var i = 0; i < this.selectedFrec; i++) {
 			// this.workingData += this.timeData[this.options.minfreq+i];
+			this.workingData += this.freqData[i];
 			// this.workingData += Math.abs(this.timeData[i]-128);
-			this.workingData += Math.abs(this.freqData[this.options.minfreq+i]);
+			// this.workingData += Math.abs(this.freqData[this.options.minfreq+i]);
 		};
+		// this.workingData = Math.abs(this.workingData-this.selectedFrec*128)/this.selectedFrec;
 		this.workingData /= this.selectedFrec;
+		
 		// this.workingData = 128/2;
-  		// console.log(this.workingData);
+  		// console.log(this.workingData,this.selectedFrec);
 
 		this.AvrVHystoryRes = 0;
 		var lastAvrVHystory = moveHistory(this.AvrVHystory);
@@ -164,33 +169,3 @@ var AnalyserProcessor = (function(){
 	};
 	return AnalyserProcessor;
 })();
-
-var Beat = (function(){
-	function Beat(time,type){
-		console.log('beat at',time,type==2?'big':'small');
-		this.time = time;
-		this.type = type;
-		this.init();
-	}
-	Beat.prototype.init = function() {
-		Beat.prototype.objects.push(this);
-	};
-
-
-	Beat.prototype.getAll = function() {
-		var result = [];
-		for (var i = 0; i < Beat.prototype.objects.length; i++){
-			var b = Beat.prototype.objects[i];
-			result.push({a:b.time,b:b.type});
-		}
-		return result;
-		// Beat.prototype.objects.push(this);
-	};
-
-	Beat.prototype.objects = [];
-	return Beat;
-})();
-
-// console.log('aa');
-// 161573.55000000002
-// var analyser = new Analyser(fftSize:2048, minfreq:128*0,maxfreq:128*1, drawer: drawer });
