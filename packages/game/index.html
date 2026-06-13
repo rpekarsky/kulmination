@@ -56,6 +56,14 @@
 	.overlay .info { color: #ccc; }
 	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
 	.overlay .vol input[type=range] { width: 80px; }
+	.overlay .tracks { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+	.overlay .tracks a {
+		color: #888; text-decoration: none; cursor: pointer;
+		border-bottom: 1px dotted #444;
+	}
+	.overlay .tracks a:hover { color: #ddd; border-bottom-color: #888; }
+	.overlay .tracks a.active { color: #fff; font-weight: bold; border-bottom-color: #fff; }
+	.overlay .tracks .custom { color: #8c8; }
 
 	#drop-overlay {
 		display: none;
@@ -84,6 +92,7 @@
 	<div id="drop-overlay"><span>drop <strong>audio</strong> + <strong>beats</strong> (both files together)</span></div>
 
 	<div class="overlay" id="game-overlay">
+		<span class="tracks" id="track-list"></span>
 		<span class="info" id="info">preview</span>
 		<label class="vol">music <input type="range" id="vol-slider" min="0" max="100"></label>
 		<label class="vol">sfx <input type="range" id="sfx-slider" min="0" max="100"></label>
@@ -124,8 +133,11 @@
 		var infoEl      = document.getElementById('info');
 		var hintEl      = document.getElementById('hint');
 		var dropOverlay = document.getElementById('drop-overlay');
+		var trackListEl = document.getElementById('track-list');
 
-		var currentAudioUrl = null;     // for revoking the previous Blob URL on swap
+		var presets        = [];        // manifest entries [{id, audio, beats}]
+		var activeTrackId  = null;      // currently playing preset id (null = preview or custom drop)
+		var currentAudioUrl = null;     // for revoking previous Blob URL on swap
 
 		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
 		function isBeatsFile(n){ return /\.(js|json)$/i.test(n); }
@@ -246,6 +258,56 @@
 			sfxSlider.addEventListener('keydown', function(e){ e.stopPropagation(); });
 		}
 
+		// === Presets ===
+		// Fetch the build-script-generated manifest, render a clickable list
+		// in the bottom overlay. Click → fetch the beats file as text, run
+		// the same swap() the drop-handler uses with the static audio URL.
+		function renderTrackList(){
+			trackListEl.innerHTML = '';
+			presets.forEach(function(t){
+				var a = document.createElement('a');
+				a.textContent = t.id;
+				a.title = t.id;
+				if (activeTrackId === t.id) a.className = 'active';
+				a.addEventListener('click', function(e){
+					e.preventDefault();
+					loadPreset(t);
+				});
+				trackListEl.appendChild(a);
+			});
+			if (!activeTrackId && !window.PREVIEW) {
+				var custom = document.createElement('span');
+				custom.className = 'custom';
+				custom.textContent = '(custom drop)';
+				trackListEl.appendChild(custom);
+			}
+		}
+
+		function loadPreset(t){
+			infoEl.textContent = 'loading ' + t.id + '…';
+			fetch(t.beats).then(function(r){
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.text();
+			}).then(function(beatsText){
+				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);   // no-op on static paths
+				currentAudioUrl = t.audio;
+				activeTrackId = t.id;
+				swap(beatsText, t.audio, t.id);
+				renderTrackList();
+			}).catch(function(err){
+				infoEl.textContent = 'failed: ' + (err.message || err);
+			});
+		}
+
+		fetch('tracks/manifest.json').then(function(r){
+			return r.ok ? r.json() : [];
+		}).then(function(json){
+			presets = json || [];
+			renderTrackList();
+		}).catch(function(){
+			// no manifest — just leave the list empty; DnD still works.
+		});
+
 		// === DnD ===
 		var dragDepth = 0;
 		document.addEventListener('dragenter', function(e){
@@ -277,7 +339,9 @@
 				var newUrl = URL.createObjectURL(audio);
 				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
 				currentAudioUrl = newUrl;
+				activeTrackId = null;
 				swap(beatsText, newUrl, audio.name + ' + ' + beats.name);
+				renderTrackList();
 			}).catch(function(err){
 				infoEl.textContent = 'drop failed: ' + (err && err.message || err);
 			});

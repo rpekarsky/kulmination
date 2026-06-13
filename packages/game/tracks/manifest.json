@@ -1,0 +1,27 @@
+[
+  {
+    "id": "alexguz-funk-amp-breakbeat-541097",
+    "audio": "tracks/alexguz-funk-amp-breakbeat-541097.mp3",
+    "beats": "tracks/alexguz-funk-amp-breakbeat-541097_beats.js"
+  },
+  {
+    "id": "jumpingbunny-game-to-dance-320448",
+    "audio": "tracks/jumpingbunny-game-to-dance-320448.mp3",
+    "beats": "tracks/jumpingbunny-game-to-dance-320448_beats.js"
+  },
+  {
+    "id": "nveravetyanmusic-game-wave-282615",
+    "audio": "tracks/nveravetyanmusic-game-wave-282615.mp3",
+    "beats": "tracks/nveravetyanmusic-game-wave-282615_beats.js"
+  },
+  {
+    "id": "sunsides-rhythm-tribune-energetic-percussion-213183",
+    "audio": "tracks/sunsides-rhythm-tribune-energetic-percussion-213183.mp3",
+    "beats": "tracks/sunsides-rhythm-tribune-energetic-percussion-213183_beats.js"
+  },
+  {
+    "id": "the_mountain-pop-rhythm-139501",
+    "audio": "tracks/the_mountain-pop-rhythm-139501.mp3",
+    "beats": "tracks/the_mountain-pop-rhythm-139501_beats.js"
+  }
+]
