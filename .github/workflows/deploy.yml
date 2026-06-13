@@ -1,0 +1,81 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Regenerate tracks/manifest.json from whatever audio sits in
+      # packages/game/tracks/ at deploy time. No-ops on an empty tracks dir
+      # (which is the current state — preview + Jamendo search + DnD only).
+      - name: Build game manifest
+        run: |
+          cd packages/game
+          node build-manifest.js
+
+      - name: Assemble _site/
+        run: |
+          mkdir -p _site
+          # game at the root of pages — index.html, all *.js, sounds/, tracks/, js/
+          cp -r packages/game/. _site/
+          # don't ship build/dev artifacts
+          rm -rf _site/node_modules _site/package*.json _site/build-manifest.js _site/.wrangler
+          # analyzer at /analyzer/
+          mkdir -p _site/analyzer
+          cp -r packages/audio-analyzer/. _site/analyzer/
+          rm -rf _site/analyzer/node_modules _site/analyzer/package*.json
+
+      # Replaces the literal "<!-- analytics -->" placeholder in both
+      # index.html files with the snippet from ANALYTICS_SCRIPT (a repo-level
+      # Variable, not a Secret — Cloudflare Insights doesn't care). If the
+      # variable is empty/unset, the placeholder stays as a harmless comment.
+      - name: Inject analytics
+        env:
+          ANALYTICS_SCRIPT: ${{ vars.ANALYTICS_SCRIPT }}
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const script = process.env.ANALYTICS_SCRIPT || '';
+          if (!script) {
+            console.log('ANALYTICS_SCRIPT not set, skipping injection');
+            process.exit(0);
+          }
+          for (const path of ['_site/index.html', '_site/analyzer/index.html']) {
+            const content = fs.readFileSync(path, 'utf8');
+            fs.writeFileSync(path, content.replace('<!-- analytics -->', script));
+            console.log('Analytics injected into', path);
+          }
+          EOF
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
