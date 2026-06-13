@@ -51,34 +51,50 @@
 	.overlay button:hover:enabled { background: #333; }
 	.overlay .status { color: #666; }
 	.overlay input[type=file] { font-size: 11px; color: #aaa; }
+	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
+	.overlay .vol input[type=range] { width: 80px; }
+	#drop-overlay {
+		display: none;
+		position: fixed; inset: 0;
+		background: rgba(0,100,200,0.25);
+		border: 6px dashed rgba(255,255,255,0.55);
+		z-index: 9999;
+		pointer-events: none;
+		font-family: monospace;
+		font-size: 22px;
+		color: #fff;
+		text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+	#drop-overlay.active { display: flex; }
+	#drop-overlay span { padding: 12px 24px; background: rgba(0,0,0,0.55); border-radius: 6px; }
 </style>
 </head>
 <body>
+	<div id="drop-overlay"><span>drop an <strong>audio</strong> file (mp3/wav/ogg) anywhere to analyze</span></div>
 	<canvas id="canvas" width='700' height='800'></canvas>
 
-	<!-- Track selector — same list as packages/game/, used to pick which beats
-	     data file (and corresponding mp3) is currently in scope. Default = luckystar
-	     (example10.mp3 is symlinked from packages/game/). -->
+	<!-- Track selector — same list as packages/game/. Pick a track to analyze
+	     (or drag-drop your own mp3 anywhere on the page). All sources are
+	     freely-licensed Pixabay tracks bundled under tracks/. -->
 	<script>
 	var TRACKS = [
-		{ id: 'luckystar',              audio: 'example10.mp3'                                                  },
-		{ id: '30sec',                  audio: 'example8.mp3'                                                   },
-		{ id: 'caramell',               audio: 'example24.mp3'                                                  },
-		{ id: 'dirt',                   audio: 'example2.mp3'                                                   },
-		{ id: 'jim',                    audio: 'example7.mp3'                                                   },
-		{ id: 'korn',                   audio: 'example21.mp3'                                                  },
-		{ id: 'lie',                    audio: '/home/keto/labs/audio3/music/02. A Beautiful Lie.mp3'           },
-		{ id: 'muse',                   audio: '/home/keto/labs/audio3/music/Muse - Feeling Good.mp3'           },
-		{ id: 'Nickelback',             audio: 'example4.mp3'                                                   },
-		{ id: 'nightwish',              audio: 'example9.mp3'                                                   },
-		{ id: 'nightwish_imagenaerum',  audio: '/home/keto/labs/audio3/music/Nightwish - Storytime (2011).mp3'  },
-		{ id: 'prodigy',                audio: 'example11.mp3'                                                  },
-		{ id: 'pushnoy',                audio: 'example5.mp3'                                                   },
-		{ id: 'rise',                   audio: '/home/keto/labs/audio3/music/Rise.mp3'                          },
-		{ id: 'soulshop',               audio: 'example22.mp3'                                                  }
+		{ id: 'alexguz-funk-breakbeat',       audio: 'tracks/alexguz-funk-amp-breakbeat-541097.mp3' },
+		{ id: 'jumpingbunny-game-to-dance',   audio: 'tracks/jumpingbunny-game-to-dance-320448.mp3' },
+		{ id: 'nveravetyanmusic-game-wave',   audio: 'tracks/nveravetyanmusic-game-wave-282615.mp3' },
+		{ id: 'sunsides-rhythm-tribune',      audio: 'tracks/sunsides-rhythm-tribune-energetic-percussion-213183.mp3' },
+		{ id: 'the-mountain-pop-rhythm',      audio: 'tracks/the_mountain-pop-rhythm-139501.mp3' }
 	];
-	var WORKING_AUDIO = { 'example10.mp3': true };  // only the luckystar symlink resolves locally
-	var SELECTED_TRACK = (new URLSearchParams(location.search).get('track')) || 'luckystar';
+	var WORKING_AUDIO = {
+		'tracks/alexguz-funk-amp-breakbeat-541097.mp3': true,
+		'tracks/jumpingbunny-game-to-dance-320448.mp3': true,
+		'tracks/nveravetyanmusic-game-wave-282615.mp3': true,
+		'tracks/sunsides-rhythm-tribune-energetic-percussion-213183.mp3': true,
+		'tracks/the_mountain-pop-rhythm-139501.mp3': true
+	};
+	var SELECTED_TRACK = (new URLSearchParams(location.search).get('track')) || TRACKS[0].id;
 	var pickedTrack = TRACKS.find(function(t){ return t.id === SELECTED_TRACK; }) || TRACKS[0];
 	SELECTED_TRACK = pickedTrack.id;
 	window.TRACK_URL = pickedTrack.audio;
@@ -93,6 +109,7 @@
 		<button id="stop-btn" disabled>stop</button>
 		<button id="analyze-btn" disabled>fast analyze (offline)</button>
 		<button id="export-btn" disabled>export beats.js</button>
+		<label class="vol">vol <input type="range" id="vol-slider" min="0" max="100"></label>
 		<span class="status" id="status">loading…</span>
 	</div>
 	<script>
@@ -166,9 +183,16 @@
 			if (!lastAnalysis || !lastAnalysis.beats.length) return;
 			var name = prompt('Track name (used as <name>_beats.js):', currentTrackName || 'track');
 			if (!name) return;
-			var src = currentTrackName === SELECTED_TRACK
-				? (TRACKS.find(function(t){return t.id === SELECTED_TRACK;}).audio)
-				: (currentTrackName + '.mp3');
+			var src;
+			if (currentTrackName === SELECTED_TRACK) {
+				// Picked from TRACKS list — use its known audio path.
+				src = TRACKS.find(function(t){return t.id === SELECTED_TRACK;}).audio;
+			} else {
+				// User dropped/picked a file. Game looks for audio under tracks/,
+				// so write that path here so the exported _beats.js is consistent
+				// even if the game side didn't override musicSrc.
+				src = 'tracks/' + currentTrackName + '.mp3';
+			}
 			var content =
 				'var beats = ' + JSON.stringify(lastAnalysis.beats) + ';\n\n' +
 				'var duration = Math.floor(' + (lastAnalysis.duration / 1000) + '*1000);\n\n' +
@@ -184,10 +208,19 @@
 			URL.revokeObjectURL(url);
 		});
 
-		// File input: load any local audio file via a blob URL.
-		fileInput.addEventListener('change', function(e){
-			var file = e.target.files[0];
-			if (!file) return;
+		// Volume slider — drives gainNode (defined in analysis.js), persists in localStorage.
+		var volSlider = document.getElementById('vol-slider');
+		var savedVol = parseInt(localStorage.getItem('analyzer-vol') || '50', 10);
+		volSlider.value = String(savedVol);
+		if (typeof gainNode !== 'undefined') gainNode.gain.value = savedVol / 100;
+		volSlider.addEventListener('input', function(e){
+			var v = parseInt(e.target.value, 10);
+			if (typeof gainNode !== 'undefined') gainNode.gain.value = v / 100;
+			localStorage.setItem('analyzer-vol', String(v));
+		});
+		volSlider.addEventListener('keydown', function(e){ e.stopPropagation(); });
+
+		function loadAudioFile(file){
 			window.TRACK_URL = URL.createObjectURL(file);
 			currentTrackName = file.name.replace(/\.[^.]+$/, '');  // strip extension
 			status.textContent = 'loading ' + file.name + '…';
@@ -196,6 +229,41 @@
 			analyzeBtn.disabled = true;
 			exportBtn.disabled = true;
 			loadSoundFile(window.TRACK_URL);
+		}
+
+		// File input: load any local audio file via a blob URL.
+		fileInput.addEventListener('change', function(e){
+			var file = e.target.files[0];
+			if (!file) return;
+			loadAudioFile(file);
+		});
+
+		// Drag-and-drop anywhere on the page (audio files only — analyzer doesn't
+		// consume beats files, it produces them).
+		var dropOverlay = document.getElementById('drop-overlay');
+		var dragDepth = 0;
+		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
+		document.addEventListener('dragenter', function(e){
+			e.preventDefault();
+			dragDepth++;
+			dropOverlay.classList.add('active');
+		});
+		document.addEventListener('dragleave', function(){
+			dragDepth--;
+			if (dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.remove('active'); }
+		});
+		document.addEventListener('dragover', function(e){ e.preventDefault(); });
+		document.addEventListener('drop', function(e){
+			e.preventDefault();
+			dragDepth = 0;
+			dropOverlay.classList.remove('active');
+			var files = Array.from(e.dataTransfer.files || []);
+			var audio = files.find(function(f){ return isAudioFile(f.name); });
+			if (!audio) {
+				status.textContent = 'drop an audio file (.mp3/.wav/.ogg)';
+				return;
+			}
+			loadAudioFile(audio);
 		});
 	})();
 	</script>

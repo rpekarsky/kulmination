@@ -76,6 +76,7 @@ Obstacles.RotateObstacle=(function(){
 		gameCam.fovSpeed = 0.02;
 		SCORE -= 250;
 		scoreHud.setScore(SCORE);
+		if (typeof SFX !== 'undefined') SFX.play('explosion');
 	};
 	RotateObstacle.prototype.collideOffCallback = function() {
 		parent.collideOffCallback.call(this);
@@ -83,6 +84,7 @@ Obstacles.RotateObstacle=(function(){
 		gameCam.shakeValue += 0.2;
 		SCORE += 50;
 		scoreHud.setScore(SCORE);
+		if (typeof SFX !== 'undefined') SFX.play('pass');
 		// scoreHud.setScore(SCORE);
 
 		// gameCam.fov = 110;
@@ -161,6 +163,7 @@ Obstacles.Coin=(function(){
 		gameCam.shakeValue += 0.02;
 		SCORE += 100;
 		scoreHud.setScore(SCORE);
+		if (typeof SFX !== 'undefined') SFX.play(this.big ? 'blip2' : 'blip');
 	};
 
 	Coin.prototype.update = function(){

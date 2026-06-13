@@ -22,6 +22,12 @@ function loadBeats(){
 		// var pos = level.length/duration*(beat.a-50);
 		var pos = level.length/duration*beat.a;
 
+		// Pre-roll: beats falling in the first 150ms get a negative position
+		// after the -150ms offset. Spline.getPointAt(negative) → NaN cascade →
+		// undefined index. Skip them; the tube is a closed spline but the
+		// arclength→t mapping is not wrap-aware.
+		if (pos < 0) continue;
+
 
 		if(Math.random()>0.7){
 			inv *= -1;

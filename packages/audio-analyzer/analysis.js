@@ -8,6 +8,11 @@ analyser.fftSize = 64;
 analyser.smoothingTimeConstant = 0.5;
 scriptProc = context.createScriptProcessor(512, 1, 1);
 scriptProc.onaudioprocess = onAnalisys;
+// Gain node — used as the routing point for play() so the vol slider can
+// scale loudness in realtime. Default 0.5; updated by the overlay.
+var gainNode = context.createGain();
+gainNode.gain.value = 0.5;
+gainNode.connect(context.destination);
 
 
 // функция для подгрузки файла в буфер
@@ -137,9 +142,8 @@ var play = function(){
   source = context.createBufferSource();
   // подключаем буфер к источнику
   source.buffer = buffer;
-  // дефолтный получатель звука
-  destination = context.destination;
-  // подключаем источник к получателю
+  // route through gainNode (which goes to context.destination) so vol slider works
+  destination = gainNode;
   source.connect(analyser);
   analyser.connect(destination);
   scriptProc.connect(destination);
@@ -222,4 +226,4 @@ var analyzeOffline = function(onProgress, onDone){
     });
 };
 
-loadSoundFile(window.TRACK_URL || 'example10.mp3');
+loadSoundFile(window.TRACK_URL);

@@ -35,12 +35,30 @@ function getSmoothedAudioTime(){
 }
 
 function mainloop(){
+	// Preview mode: no audio loaded, no beats, no obstacles. Drive curLoopTime
+	// with a wall-clock 60s loop so the camera ambles around the tube as an
+	// idle screensaver until the user drops files.
+	if (window.PREVIEW) {
+		time = Date.now();
+		curLoopTime = (performance.now() / 60000) % 1;
+		lastX += (lastXto - lastX) * 0.05;
+		rotateDelta = ((width/2 - lastX)/width);
+		gameCam.update();
+		player.update();
+		return;
+	}
+
+	// Bail out until audio metadata is in. Until then audio.duration is NaN,
+	// curLoopTime is NaN, and every spline.getPointAt(NaN) downstream throws.
+	var audioDuration = MPlayer.audio.duration;
+	if (!audioDuration || isNaN(audioDuration)) return;
+
 	// lastXto
 	time = Date.now();
 	// time = 0;
 	// var lptm = controller.loopTime;
 	// curLoopTime = ((time - lptm) %  lptm)/lptm;
-	curLoopTime = getSmoothedAudioTime() / MPlayer.audio.duration;
+	curLoopTime = getSmoothedAudioTime() / audioDuration;
 	// curLoopTime += 0.01837088491626749/1000;
 	lastX += (lastXto - lastX)*0.05;
 	if(lastXto == width/2){
