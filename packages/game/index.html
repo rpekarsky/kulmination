@@ -169,6 +169,7 @@
 	(function(){
 		var GAME_SCRIPTS = [
 			'rng.js',
+			'beat-filter.js',
 			'MPlayer.js',
 			'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 			'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
@@ -288,6 +289,14 @@
 				infoEl.textContent = 'invalid beats file (empty beats array)';
 				return;
 			}
+
+			// 3b. Thin the beat stream per type (coin / obstacle): the
+			//     analyzer often emits dense clusters, loadBeats then spawns
+			//     visibly-overlapping blocks. filterBeats keeps at most one
+			//     beat of each type per 100ms window.
+			var beforeN = window.beats.length;
+			window.beats = filterBeats(window.beats);
+			console.log('beat-filter: ' + beforeN + ' → ' + window.beats.length + ' (' + (beforeN - window.beats.length) + ' dropped)');
 
 			// 4. Audio source — pause first so the old buffer stops cleanly,
 			//    then swap and let metadata reload. Skipped if loadPreset
