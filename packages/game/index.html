@@ -191,6 +191,24 @@
 	}
 	#drop-overlay.active { display: flex; }
 	#drop-overlay span { padding: 12px 24px; background: rgba(0,0,0,0.55); border-radius: 6px; }
+
+	#loading-overlay {
+		display: none;
+		position: fixed; inset: 0;
+		background: rgba(0,0,0,0.7);
+		z-index: 9998;        /* above hint (110), below #drop-overlay (9999) */
+		align-items: center;
+		justify-content: center;
+		color: #fff;
+		font-family: monospace;
+		font-size: 16px;
+	}
+	body.loading #loading-overlay { display: flex; }
+	body.loading #loading-overlay span {
+		padding: 12px 24px;
+		background: rgba(0,0,0,0.55);
+		border-radius: 6px;
+	}
 </style>
 </head>
 <body>
@@ -204,6 +222,7 @@
 	</div>
 
 	<div id="drop-overlay"><span>drop <strong>audio</strong> (.mp3/.wav/.ogg) — beats are analyzed on the fly</span></div>
+	<div id="loading-overlay"><span>loading…</span></div>
 
 	<div class="overlay" id="game-overlay">
 		<span class="info" id="info">preview</span>
@@ -395,7 +414,10 @@
 			//    tube.js declares everything with top-level `var`, so a re-inject
 			//    reassigns the window globals (splinePoints, spline, level,
 			//    tubeMesh, BgPlate, BgWall). Old ones become garbage.
-			injectSrc('tube.js').then(function(){
+			//
+			// Return the promise so callers (analyzeAndPlay) can wait for the
+			// game to fully boot before dropping their loading overlay.
+			return injectSrc('tube.js').then(function(){
 				loadBeats();
 				addPlates();
 				scene.add(tubeMesh);
@@ -415,8 +437,15 @@
 			}).catch(function(err){
 				window.__rebuilding = false;
 				infoEl.textContent = 'rebuild failed: ' + (err && err.message || err);
+				throw err;
 			});
 		}
+
+		// Loading overlay — flipped on at the start of any "load a track"
+		// flow and off again once analyzeAndPlay's full chain (including the
+		// async swap → tube.js → loadBeats → MPlayer.play) settles.
+		function showLoading(){ document.body.classList.add('loading'); }
+		function hideLoading(){ document.body.classList.remove('loading'); }
 
 		function wireVolume(){
 			var vol = document.getElementById('vol-slider');
@@ -568,19 +597,22 @@
 		// audio URL we kept after the first play). Same swap path as a fresh
 		// Jamendo result; we just skip the search step.
 		function loadFromMeta(label, meta){
+			showLoading();
 			activeTrackId = null;
 			infoEl.textContent = 'fetching ' + label + '…';
 			fetch(meta.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				return r.blob();
 			}).then(function(blob){
-				analyzeAndPlay(blob, label, true);
+				return analyzeAndPlay(blob, label, true);
 			}).catch(function(err){
+				hideLoading();
 				infoEl.textContent = 'replay fetch failed: ' + (err.message || err);
 			});
 		}
 
 		function loadPreset(t){
+			showLoading();
 			infoEl.textContent = 'loading ' + t.id + '…';
 			fetch(t.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -589,6 +621,7 @@
 				activeTrackId = t.id;
 				return analyzeAndPlay(blob, t.id, false);
 			}).catch(function(err){
+				hideLoading();
 				infoEl.textContent = 'failed: ' + (err.message || err);
 			});
 		}
@@ -684,6 +717,7 @@
 		}
 
 		function loadJamendoTrack(t){
+			showLoading();
 			var label = t.artist + ' — ' + t.name;
 			activeTrackId = null;
 			infoEl.textContent = 'fetching ' + label + ' from jamendo…';
@@ -702,9 +736,10 @@
 						duration:  t.duration,
 						source:    'jamendo',
 					});
-					analyzeAndPlay(blob, label, true);
+					return analyzeAndPlay(blob, label, true);
 				})
 				.catch(function(err){
+					hideLoading();
 					infoEl.textContent = 'jamendo fetch failed: ' + (err.message || err);
 				});
 		}
@@ -738,6 +773,7 @@
 		// preset-click path (audio fetched from tracks/) and the drop path
 		// (audio File from DataTransfer).
 		function analyzeAndPlay(audioBlob, label, isCustom){
+			showLoading();
 			infoEl.textContent = 'decoding ' + label + '…';
 			var AC = window.AudioContext || window.webkitAudioContext;
 			var ctx = new AC();
@@ -758,10 +794,11 @@
 				var newUrl = URL.createObjectURL(audioBlob);
 				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
 				currentAudioUrl = newUrl;
-				swap(beatsText, newUrl, label, isCustom);
+				return swap(beatsText, newUrl, label, isCustom);  // wait for tube/loadBeats/MPlayer
 			}).catch(function(err){
 				infoEl.textContent = 'analyze failed: ' + (err && err.message || err);
 			}).finally(function(){
+				hideLoading();
 				if (ctx.close) ctx.close();
 			});
 		}

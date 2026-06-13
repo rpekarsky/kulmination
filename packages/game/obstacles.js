@@ -29,6 +29,7 @@ Obstacles.update = function () {
 			} else {
 				scoring.avoided(50);
 				gameCam.shakeValue += 0.2;
+				if (typeof SFX !== 'undefined') SFX.play('whoosh');
 			}
 		}
 
