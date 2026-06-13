@@ -25,20 +25,64 @@
 		position: fixed;
 		top: 28px; left: 50%;
 		transform: translateX(-50%);
-		padding: 10px 18px;
-		background: rgba(0,0,0,0.55);
+		padding: 12px 18px;
+		background: rgba(0,0,0,0.6);
 		border: 1px solid rgba(255,255,255,0.15);
 		border-radius: 6px;
 		z-index: 110;
 		font-size: 13px;
 		color: #ddd;
 		text-align: center;
-		pointer-events: none;
 		max-width: 80vw;
+		min-width: 420px;
 	}
 	#hint.hidden { display: none; }
-	#hint .sub { color: #888; font-size: 11px; margin-top: 4px; }
-	#hint a { color: #88c; pointer-events: auto; }
+	#hint h1 { margin: 0 0 8px; font-size: 18px; letter-spacing: 1px; color: #fff; font-weight: bold; }
+	#hint .sub { color: #888; font-size: 11px; margin-top: 6px; text-align: center; }
+	#hint a { color: #88c; }
+	#hint #track-list {
+		display: flex; flex-direction: column;
+		text-align: left;
+		margin: 6px 0;
+		max-height: 154px;                /* ~7 rows × 22px line-height */
+		overflow-y: auto;
+		border: 1px solid rgba(255,255,255,0.08);
+		border-radius: 4px;
+		padding: 4px 8px;
+		line-height: 1.4;
+	}
+	#hint #track-list .item {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 0;
+	}
+	#hint #track-list .item .name {
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		flex: 1 1 auto; min-width: 0;
+	}
+	#hint #track-list .item .score {
+		color: #777; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+	}
+	#hint #track-list .item.bundled .name {
+		color: #aaa; cursor: pointer;
+		border-bottom: 1px dotted transparent;
+	}
+	#hint #track-list .item.bundled .name:hover { color: #fff; border-bottom-color: #888; }
+	#hint #track-list .item.bundled.active .name { color: #fff; font-weight: bold; }
+	#hint #track-list .item.custom { opacity: 0.7; }
+	#hint #track-list .item.custom .name { color: #8c8; font-style: italic; cursor: default; }
+	#hint #track-list .empty { color: #555; padding: 4px 0; font-style: italic; }
+	#audio-prompt {
+		margin: 0 0 8px;
+		padding: 6px 10px;
+		background: rgba(255,200,40,0.12);
+		border: 1px solid rgba(255,200,40,0.35);
+		border-radius: 4px;
+		color: #fc4;
+		font-size: 12px;
+	}
+	#audio-prompt.hidden { display: none; }
 
 	.overlay {
 		position: fixed;
@@ -56,14 +100,6 @@
 	.overlay .info { color: #ccc; }
 	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
 	.overlay .vol input[type=range] { width: 80px; }
-	.overlay .tracks { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
-	.overlay .tracks a {
-		color: #888; text-decoration: none; cursor: pointer;
-		border-bottom: 1px dotted #444;
-	}
-	.overlay .tracks a:hover { color: #ddd; border-bottom-color: #888; }
-	.overlay .tracks a.active { color: #fff; font-weight: bold; border-bottom-color: #fff; }
-	.overlay .tracks .custom { color: #8c8; }
 
 	#drop-overlay {
 		display: none;
@@ -85,14 +121,15 @@
 </head>
 <body>
 	<div id="hint">
-		<strong>Kulmination</strong> &mdash; drop <strong>audio</strong> (.mp3/.wav/.ogg) + <strong>beats</strong> (.js) anywhere to play
-		<div class="sub">need beats? <a href="../audio-analyzer/" target="_blank">audio analyzer</a></div>
+		<h1>Kulmination</h1>
+		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
+		<div id="track-list">loading tracks…</div>
+		<div class="sub">drop your own .mp3 anywhere &middot; need beats? <a href="../audio-analyzer/" target="_blank">audio analyzer</a></div>
 	</div>
 
-	<div id="drop-overlay"><span>drop <strong>audio</strong> + <strong>beats</strong> (both files together)</span></div>
+	<div id="drop-overlay"><span>drop <strong>audio</strong> (.mp3/.wav/.ogg) — beats are analyzed on the fly</span></div>
 
 	<div class="overlay" id="game-overlay">
-		<span class="tracks" id="track-list"></span>
 		<span class="info" id="info">preview</span>
 		<label class="vol">music <input type="range" id="vol-slider" min="0" max="100"></label>
 		<label class="vol">sfx <input type="range" id="sfx-slider" min="0" max="100"></label>
@@ -102,6 +139,7 @@
 	<script src="js/three.min.js"></script>
 	<script src="js/CurveExtras.js"></script>
 	<script src="js/renderers/CSS3DRenderer.js"></script>
+	<script src="beat-detector.js"></script>
 
 	<script>
 	// Bootstrap.
@@ -125,7 +163,7 @@
 			'MPlayer.js',
 			'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 			'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
-			'hud.js', 'SFX.js', 'main.js', 'loop.js', 'initialize.js'
+			'hud.js', 'scoring.js', 'SFX.js', 'main.js', 'loop.js', 'initialize.js'
 		];
 
 		var PREVIEW_BEATS_TEXT = 'var beats = []; var duration = 60000; var musicSrc = "";';
@@ -139,17 +177,42 @@
 		var activeTrackId  = null;      // currently playing preset id (null = preview or custom drop)
 		var currentAudioUrl = null;     // for revoking previous Blob URL on swap
 
-		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
-		function isBeatsFile(n){ return /\.(js|json)$/i.test(n); }
+		function enterGameState(){ hintEl.classList.add('hidden'); }
+		function exitGameState(){ hintEl.classList.remove('hidden'); renderTrackList(); }
+		window.addEventListener('track-finished', exitGameState);
 
-		function readText(file){
-			return new Promise(function(res, rej){
-				var fr = new FileReader();
-				fr.onload = function(e){ res(e.target.result); };
-				fr.onerror = function(){ rej(fr.error); };
-				fr.readAsText(file);
-			});
+		// Audio priming. Browsers (Firefox especially) block .play() that
+		// originates from an async chain because the click's user-activation
+		// window expires before MPlayer.play() actually runs. We catch the
+		// very first user gesture on the page, play a tiny silent WAV to
+		// register activation on MPlayer.audio, then later .play() calls on
+		// the same element bypass the autoplay policy. The yellow prompt in
+		// the hint card explains why we want that first click.
+		var SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+		var audioPrimed = false;
+		function primeAudio(){
+			if (audioPrimed) return;
+			if (typeof MPlayer === 'undefined' || !MPlayer.audio) return;
+			audioPrimed = true;
+			MPlayer.audio.src = SILENT_WAV;
+			var p = MPlayer.audio.play();
+			if (p && p.then) {
+				p.then(function(){
+					MPlayer.audio.pause();
+					MPlayer.audio.currentTime = 0;
+				}).catch(function(){
+					// silent wav failed — let it slide; the per-preset
+					// loadPreset path still primes on click.
+				});
+			}
+			var prompt = document.getElementById('audio-prompt');
+			if (prompt) prompt.classList.add('hidden');
 		}
+		document.addEventListener('click',      primeAudio);
+		document.addEventListener('keydown',    primeAudio);
+		document.addEventListener('touchstart', primeAudio);
+
+		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
 
 		function injectInline(text){
 			var s = document.createElement('script');
@@ -175,13 +238,20 @@
 			injectInline('window.musicSrc = "";');
 			return GAME_SCRIPTS.reduce(function(p, src){
 				return p.then(function(){ return injectSrc(src); });
-			}, Promise.resolve()).then(wireVolume);
+			}, Promise.resolve()).then(function(){
+				wireVolume();
+				// `scoring.CUSTOM_PREFIX` only exists after scoring.js loads —
+				// re-render now to pick up custom entries from previous sessions.
+				renderTrackList();
+			});
 		}
 
 		// In-place swap from current state (preview OR a previous real track)
 		// to a new track. Re-runs tube.js to rebuild the spline against the
 		// dropped track's duration, then loadBeats() / addPlates() / scene.add.
-		function swap(beatsText, audioBlobUrl, label){
+		// `isCustom` decides whether the highscore lands under the bundled or
+		// custom namespace (custom rows show up greyed-out in the list).
+		function swap(beatsText, audioBlobUrl, label, isCustom){
 			// 1. Remove current visual meshes from scene.
 			if (window.tubeMesh) scene.remove(window.tubeMesh);
 			if (window.BgPlate && window.BgPlate.prototype && window.BgPlate.prototype.mesh) {
@@ -191,6 +261,8 @@
 			// 2. Drop obstacles (preview has none; a previous real track has them).
 			Obstacles.objects = [];
 			Obstacles.curCollideTestNum = 0;
+			Obstacles._lastSfxTs = -1;
+			Obstacles.trackFinished = false;
 
 			// 3. Install new beats / duration / musicSrc as window globals.
 			injectInline(beatsText);
@@ -205,11 +277,16 @@
 				return;
 			}
 
-			// 4. Audio source — pause first so the old buffer stops cleanly, then
-			//    swap and let metadata reload.
-			MPlayer.audio.pause();
-			MPlayer.audio.src = audioBlobUrl;
-			MPlayer.audio.load();
+			// 4. Audio source — pause first so the old buffer stops cleanly,
+			//    then swap and let metadata reload. Skipped if loadPreset
+			//    already primed the same src synchronously inside its
+			//    click-handler (preserves the autoplay grant).
+			var resolved = new URL(audioBlobUrl, location.href).href;
+			if (MPlayer.audio.src !== resolved) {
+				MPlayer.audio.pause();
+				MPlayer.audio.src = audioBlobUrl;
+				MPlayer.audio.load();
+			}
 
 			// 5. Reset loadBeats accumulators (they mutate across calls).
 			window.tmpRot       = 0;
@@ -229,9 +306,16 @@
 				addPlates();
 				scene.add(tubeMesh);
 
+				// Score/multiplier/streak get reset; best score for this track
+				// is loaded from localStorage and pushed to bestHud. For custom
+				// drops scoring.reset also pre-creates the highscore entry so
+				// the track shows up in the list immediately.
+				scoring.reset(label, isCustom);
+
 				window.PREVIEW = false;
-				hintEl.classList.add('hidden');
 				infoEl.textContent = label;
+				enterGameState();
+				renderTrackList();
 				MPlayer.play();
 			}).catch(function(err){
 				infoEl.textContent = 'rebuild failed: ' + (err && err.message || err);
@@ -258,42 +342,74 @@
 			sfxSlider.addEventListener('keydown', function(e){ e.stopPropagation(); });
 		}
 
-		// === Presets ===
-		// Fetch the build-script-generated manifest, render a clickable list
-		// in the bottom overlay. Click → fetch the beats file as text, run
-		// the same swap() the drop-handler uses with the static audio URL.
+		// === Track list ===
+		// Two flavours of rows:
+		//   - bundled (from tracks/manifest.json) — clickable, plays the preset
+		//   - custom (from kulm_best_custom_* localStorage entries) — greyed
+		//     out, not clickable: the underlying file is on the user's disk
+		//     and we don't have it anymore, but we still want to show that a
+		//     track was attempted and what its best score was
+		function listCustomEntries(){
+			var out = [];
+			if (typeof scoring === 'undefined') return out;
+			for (var i = 0; i < localStorage.length; i++) {
+				var k = localStorage.key(i);
+				if (k && k.indexOf(scoring.CUSTOM_PREFIX) === 0) {
+					out.push({
+						id:    k.slice(scoring.CUSTOM_PREFIX.length),
+						score: parseInt(localStorage.getItem(k) || '0', 10) || 0,
+					});
+				}
+			}
+			out.sort(function(a, b){ return a.id.localeCompare(b.id); });
+			return out;
+		}
 		function renderTrackList(){
 			trackListEl.innerHTML = '';
+			function rowFor(name, score, isBundled, onClick, isActive){
+				var row = document.createElement('div');
+				row.className = 'item ' + (isBundled ? 'bundled' : 'custom') + (isActive ? ' active' : '');
+				var n = document.createElement('span');
+				n.className = 'name';
+				n.textContent = name;
+				n.title = name + (isBundled ? '' : ' (custom — drop again to play)');
+				if (onClick) n.addEventListener('click', onClick);
+				var s = document.createElement('span');
+				s.className = 'score';
+				s.textContent = score ? score : '—';
+				row.appendChild(n);
+				row.appendChild(s);
+				return row;
+			}
+			var bundlePrefix = (typeof scoring !== 'undefined') ? scoring.BUNDLED_PREFIX : 'kulm_best_';
 			presets.forEach(function(t){
-				var a = document.createElement('a');
-				a.textContent = t.id;
-				a.title = t.id;
-				if (activeTrackId === t.id) a.className = 'active';
-				a.addEventListener('click', function(e){
+				var best = parseInt(localStorage.getItem(bundlePrefix + t.id) || '0', 10) || 0;
+				var isActive = activeTrackId === t.id;
+				var row = rowFor(t.id, best, true, function(e){
 					e.preventDefault();
 					loadPreset(t);
-				});
-				trackListEl.appendChild(a);
+				}, isActive);
+				trackListEl.appendChild(row);
 			});
-			if (!activeTrackId && !window.PREVIEW) {
-				var custom = document.createElement('span');
-				custom.className = 'custom';
-				custom.textContent = '(custom drop)';
-				trackListEl.appendChild(custom);
+			listCustomEntries().forEach(function(c){
+				trackListEl.appendChild(rowFor(c.id, c.score, false, null, false));
+			});
+			if (!presets.length && !listCustomEntries().length) {
+				var empty = document.createElement('div');
+				empty.className = 'empty';
+				empty.textContent = 'no tracks — drop a .mp3 + .js below';
+				trackListEl.appendChild(empty);
 			}
 		}
 
 		function loadPreset(t){
 			infoEl.textContent = 'loading ' + t.id + '…';
-			fetch(t.beats).then(function(r){
+			fetch(t.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
-				return r.text();
-			}).then(function(beatsText){
-				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);   // no-op on static paths
-				currentAudioUrl = t.audio;
+				return r.blob();
+			}).then(function(blob){
 				activeTrackId = t.id;
-				swap(beatsText, t.audio, t.id);
-				renderTrackList();
+				return analyzeAndPlay(blob, t.id, false);
 			}).catch(function(err){
 				infoEl.textContent = 'failed: ' + (err.message || err);
 			});
@@ -307,6 +423,40 @@
 		}).catch(function(){
 			// no manifest — just leave the list empty; DnD still works.
 		});
+
+		// Single path for "got an audio blob, give me a playable track":
+		// decode it into an AudioBuffer, run the offline beat detector,
+		// synthesize a beats.js-equivalent text, then swap. Used by both the
+		// preset-click path (audio fetched from tracks/) and the drop path
+		// (audio File from DataTransfer).
+		function analyzeAndPlay(audioBlob, label, isCustom){
+			infoEl.textContent = 'decoding ' + label + '…';
+			var AC = window.AudioContext || window.webkitAudioContext;
+			var ctx = new AC();
+
+			return audioBlob.arrayBuffer().then(function(arrBuf){
+				return ctx.decodeAudioData(arrBuf);
+			}).then(function(audioBuffer){
+				infoEl.textContent = 'analyzing ' + label + '…';
+				return detectBeats(audioBuffer, function(p){
+					infoEl.textContent = 'analyzing ' + label + ' ' + Math.floor(p*100) + '%';
+				});
+			}).then(function(result){
+				if (!result.beats.length) throw new Error('analyze produced 0 beats');
+				var beatsText =
+					'var beats = '    + JSON.stringify(result.beats) + ';\n' +
+					'var duration = ' + result.duration + ';\n' +
+					'var musicSrc = "";\n';
+				var newUrl = URL.createObjectURL(audioBlob);
+				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+				currentAudioUrl = newUrl;
+				swap(beatsText, newUrl, label, isCustom);
+			}).catch(function(err){
+				infoEl.textContent = 'analyze failed: ' + (err && err.message || err);
+			}).finally(function(){
+				if (ctx.close) ctx.close();
+			});
+		}
 
 		// === DnD ===
 		var dragDepth = 0;
@@ -327,24 +477,14 @@
 
 			var files = Array.from(e.dataTransfer.files || []);
 			var audio = files.find(function(f){ return isAudioFile(f.name); });
-			var beats = files.find(function(f){ return isBeatsFile(f.name) && !isAudioFile(f.name); });
 
-			if (!audio || !beats) {
-				infoEl.textContent = 'need BOTH .mp3/.wav/.ogg AND .js — try again';
+			if (!audio) {
+				infoEl.textContent = 'need an .mp3/.wav/.ogg — try again';
 				return;
 			}
 
-			infoEl.textContent = 'loading ' + audio.name + ' + ' + beats.name + '…';
-			readText(beats).then(function(beatsText){
-				var newUrl = URL.createObjectURL(audio);
-				if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
-				currentAudioUrl = newUrl;
-				activeTrackId = null;
-				swap(beatsText, newUrl, audio.name + ' + ' + beats.name);
-				renderTrackList();
-			}).catch(function(err){
-				infoEl.textContent = 'drop failed: ' + (err && err.message || err);
-			});
+			activeTrackId = null;
+			analyzeAndPlay(audio, audio.name, true);
 		});
 
 		// Boot preview on page load.
