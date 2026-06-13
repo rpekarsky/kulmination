@@ -81,6 +81,17 @@
 	#hint #track-list .item.custom .clear         { color: #8c8; }
 	#hint #track-list .item .clear:hover          { color: #f88; }
 	#hint #track-list .empty { color: #555; padding: 4px 0; font-style: italic; }
+	#hint #track-list.hidden { display: none; }
+	#hint #track-list .item.custom.replayable { opacity: 1; }
+	#hint #track-list .item.custom.replayable .name {
+		font-style: normal; cursor: pointer; color: #b9b;
+		border-bottom: 1px dotted transparent;
+	}
+	#hint #track-list .item.custom.replayable .name:hover { color: #fff; border-bottom-color: #b9b; }
+	#hint #track-list .item .ext {
+		color: #88c; text-decoration: none; flex: 0 0 auto; padding: 0 2px;
+	}
+	#hint #track-list .item .ext:hover { color: #fff; }
 	#audio-prompt {
 		margin: 0 0 8px;
 		padding: 6px 10px;
@@ -91,6 +102,61 @@
 		font-size: 12px;
 	}
 	#audio-prompt.hidden { display: none; }
+
+	#track-search {
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
+		margin: 8px 0 4px;
+		padding: 6px 8px;
+		background: #1a1a1a;
+		border: 1px solid #333;
+		border-radius: 3px;
+		color: #ddd;
+		font-family: monospace;
+		font-size: 12px;
+	}
+	#track-search::placeholder { color: #666; }
+	#track-search:focus { outline: none; border-color: #88c; }
+
+	#hint #search-results {
+		text-align: left;
+		max-height: 154px;
+		overflow-y: auto;
+		font-size: 12px;
+		line-height: 1.4;
+	}
+	#hint #search-results .search-header {
+		color: #666;
+		font-size: 10px;
+		padding: 6px 4px 2px;
+		text-transform: uppercase;
+		letter-spacing: 0.6px;
+		border-top: 1px dashed #333;
+		margin-top: 4px;
+	}
+	#hint #search-results .search-status {
+		color: #666; font-size: 11px; padding: 6px 4px; font-style: italic;
+	}
+	#hint #search-results .search-status.error { color: #f88; }
+	#hint #search-results .item.jamendo {
+		display: flex; gap: 8px;
+		padding: 1px 4px;
+	}
+	#hint #search-results .item.jamendo .name {
+		flex: 1 1 auto; min-width: 0;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		color: #b9b; cursor: pointer;
+		border-bottom: 1px dotted transparent;
+	}
+	#hint #search-results .item.jamendo .name:hover { color: #fff; border-bottom-color: #b9b; }
+	#hint #search-results .item.jamendo .duration {
+		color: #555; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+	}
+	#hint #search-results .item.jamendo .ext {
+		color: #88c; text-decoration: none; flex: 0 0 auto; padding: 0 2px;
+	}
+	#hint #search-results .item.jamendo .ext:hover { color: #fff; }
 
 	.overlay {
 		position: fixed;
@@ -131,8 +197,10 @@
 	<div id="hint">
 		<h1>Kulmination</h1>
 		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
+		<input id="track-search" type="search" placeholder="search jamendo… (cc-licensed)" autocomplete="off" spellcheck="false">
+		<div id="search-results"></div>
 		<div id="track-list">loading tracks…</div>
-		<div class="sub">drop your own .mp3 anywhere &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
+		<div class="sub">or drop your music &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
 	</div>
 
 	<div id="drop-overlay"><span>drop <strong>audio</strong> (.mp3/.wav/.ogg) — beats are analyzed on the fly</span></div>
@@ -371,12 +439,25 @@
 		}
 
 		// === Track list ===
-		// Two flavours of rows:
+		// Three flavours of rows:
 		//   - bundled (from tracks/manifest.json) — clickable, plays the preset
-		//   - custom (from kulm_best_custom_* localStorage entries) — greyed
-		//     out, not clickable: the underlying file is on the user's disk
-		//     and we don't have it anymore, but we still want to show that a
-		//     track was attempted and what its best score was
+		//   - custom + replayable (Jamendo result we played at least once;
+		//     metadata kept in kulm_track_meta_custom_<label>) — clickable,
+		//     re-fetches the audio from the stored URL
+		//   - custom + dead (DnD'd file, no replay possible) — greyed out,
+		//     only there to show the highscore
+		var TRACK_META_PREFIX = 'kulm_track_meta_custom_';
+		function saveTrackMeta(label, meta){
+			try {
+				localStorage.setItem(TRACK_META_PREFIX + label, JSON.stringify(meta));
+			} catch (err) { /* quota etc — non-fatal */ }
+		}
+		function getTrackMeta(label){
+			try {
+				var raw = localStorage.getItem(TRACK_META_PREFIX + label);
+				return raw ? JSON.parse(raw) : null;
+			} catch (err) { return null; }
+		}
 		function listCustomEntries(){
 			var out = [];
 			if (typeof scoring === 'undefined') return out;
@@ -392,26 +473,48 @@
 			out.sort(function(a, b){ return a.id.localeCompare(b.id); });
 			return out;
 		}
+		function isSearchActive(){
+			return searchEl && searchEl.value.trim().length >= 2;
+		}
 		function renderTrackList(){
+			// Search mode = bundled+history hidden. Search results take over.
+			trackListEl.classList.toggle('hidden', isSearchActive());
 			trackListEl.innerHTML = '';
-			function rowFor(name, score, isBundled, storageKey, onClick, isActive){
+			if (isSearchActive()) return;
+
+			function rowFor(name, score, isBundled, storageKey, onClick, isActive, isReplayable, metaToo, extUrl){
+				var classes = ['item'];
+				classes.push(isBundled ? 'bundled' : 'custom');
+				if (isActive)     classes.push('active');
+				if (isReplayable) classes.push('replayable');
 				var row = document.createElement('div');
-				row.className = 'item ' + (isBundled ? 'bundled' : 'custom') + (isActive ? ' active' : '');
+				row.className = classes.join(' ');
 				var n = document.createElement('span');
 				n.className = 'name';
 				n.textContent = name;
-				n.title = name + (isBundled ? '' : ' (custom — drop again to play)');
+				n.title = name + (isBundled || isReplayable ? '' : ' (custom — drop again to play)');
 				if (onClick) n.addEventListener('click', onClick);
 				var s = document.createElement('span');
 				s.className = 'score';
 				s.textContent = score ? score : '—';
 				row.appendChild(n);
 				row.appendChild(s);
-				// Clear (×). Always present.
-				//   bundled row → removes the highscore entry; if there wasn't
-				//     one it's a no-op (storage stays empty, score stays "—")
-				//   custom row  → removes the entry AND the row from the list
-				//     (the row only exists because of its storage entry)
+				// Optional ↗ — clickable backlink to the track's page on the
+				// source service (Jamendo). Same visual as in the search list.
+				if (extUrl) {
+					var ext = document.createElement('a');
+					ext.className = 'ext';
+					ext.href = extUrl;
+					ext.target = '_blank';
+					ext.rel = 'noopener';
+					ext.textContent = '↗';
+					ext.title = 'open source page';
+					ext.addEventListener('click', function(e){ e.stopPropagation(); });
+					row.appendChild(ext);
+				}
+				// Clear (×). Bundled row clears the highscore entry; custom row
+				// removes the highscore entry AND the track-meta entry (if any),
+				// removing the row from the list entirely.
 				var x = document.createElement('span');
 				x.className = 'clear';
 				x.textContent = '×';
@@ -420,6 +523,7 @@
 					e.preventDefault();
 					e.stopPropagation();
 					localStorage.removeItem(storageKey);
+					if (metaToo) localStorage.removeItem(metaToo);
 					renderTrackList();
 				});
 				row.appendChild(x);
@@ -433,18 +537,47 @@
 				var row = rowFor(t.id, best, true, bundlePrefix + t.id, function(e){
 					e.preventDefault();
 					loadPreset(t);
-				}, isActive);
+				}, isActive, false, null, null);
 				trackListEl.appendChild(row);
 			});
 			listCustomEntries().forEach(function(c){
-				trackListEl.appendChild(rowFor(c.id, c.score, false, customPrefix + c.id, null, false));
+				var meta = getTrackMeta(c.id);
+				var click = (meta && meta.audio) ? function(e){
+					e.preventDefault();
+					loadFromMeta(c.id, meta);
+				} : null;
+				trackListEl.appendChild(rowFor(
+					c.id, c.score, false,
+					customPrefix + c.id,
+					click,
+					false,
+					!!click,                       // replayable iff we have meta
+					TRACK_META_PREFIX + c.id,      // × also removes meta
+					meta && meta.track_url || null // ↗ link if jamendo (or any source)
+				));
 			});
 			if (!presets.length && !listCustomEntries().length) {
 				var empty = document.createElement('div');
 				empty.className = 'empty';
-				empty.textContent = 'no tracks — drop a .mp3 + .js below';
+				empty.textContent = 'no tracks — drop a .mp3 anywhere or search above';
 				trackListEl.appendChild(empty);
 			}
+		}
+
+		// Replay a custom track from its stored metadata (typically a Jamendo
+		// audio URL we kept after the first play). Same swap path as a fresh
+		// Jamendo result; we just skip the search step.
+		function loadFromMeta(label, meta){
+			activeTrackId = null;
+			infoEl.textContent = 'fetching ' + label + '…';
+			fetch(meta.audio).then(function(r){
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.blob();
+			}).then(function(blob){
+				analyzeAndPlay(blob, label, true);
+			}).catch(function(err){
+				infoEl.textContent = 'replay fetch failed: ' + (err.message || err);
+			});
 		}
 
 		function loadPreset(t){
@@ -467,6 +600,136 @@
 			renderTrackList();
 		}).catch(function(){
 			// no manifest — just leave the list empty; DnD still works.
+		});
+
+		// === Jamendo search ===
+		// Hits our Cloudflare Worker (which holds the client_id in env per
+		// Jamendo ToS clause 2 — must not be exposed in client code). Worker
+		// returns up to 10 trimmed results: {id, name, artist, audio,
+		// duration, license_url, track_url}. Audio CDN at jamendo.com has CORS
+		// open, so the game fetches the mp3 directly when the user clicks a
+		// result — Worker only carries the tiny search JSON.
+		var JAMENDO_PROXY_URL = 'https://kulmination-jamendo.roman-pekarskiy.workers.dev';
+		var searchEl    = document.getElementById('track-search');
+		var resultsEl   = document.getElementById('search-results');
+		var searchTimer = null;
+		var searchAbort = null;
+
+		function fmtDuration(s){
+			var m  = Math.floor(s / 60);
+			var ss = s % 60 < 10 ? '0' + (s % 60) : String(s % 60);
+			return m + ':' + ss;
+		}
+
+		function runSearch(q){
+			if (searchAbort) searchAbort.abort();
+			searchAbort = new AbortController();
+			resultsEl.innerHTML = '<div class="search-status">searching…</div>';
+			fetch(JAMENDO_PROXY_URL + '/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
+				.then(function(r){
+					if (!r.ok) throw new Error('HTTP ' + r.status);
+					return r.json();
+				})
+				.then(function(data){
+					if (data.error) throw new Error(data.error);
+					renderSearchResults(data.results || []);
+				})
+				.catch(function(err){
+					if (err.name === 'AbortError') return;
+					resultsEl.innerHTML = '<div class="search-status error">search failed: ' + (err.message || err) + '</div>';
+				});
+		}
+
+		function renderSearchResults(items){
+			resultsEl.innerHTML = '';
+			if (!items.length) {
+				resultsEl.innerHTML = '<div class="search-status">no results</div>';
+				return;
+			}
+			// ToS 4.1 attribution: header credits Jamendo as the provider.
+			var header = document.createElement('div');
+			header.className = 'search-header';
+			header.textContent = '↓ from jamendo';
+			resultsEl.appendChild(header);
+
+			items.forEach(function(t){
+				var row = document.createElement('div');
+				row.className = 'item jamendo';
+
+				var name = document.createElement('span');
+				name.className = 'name';
+				name.textContent = t.name + ' — ' + t.artist;
+				name.title = t.name + ' by ' + t.artist + ' (click to play)';
+				name.addEventListener('click', function(){ loadJamendoTrack(t); });
+
+				var dur = document.createElement('span');
+				dur.className = 'duration';
+				dur.textContent = fmtDuration(t.duration);
+
+				// ToS 4.1: clickable backlink to the track's page on jamendo.com
+				var ext = document.createElement('a');
+				ext.className = 'ext';
+				ext.href = t.track_url;
+				ext.target = '_blank';
+				ext.rel = 'noopener';
+				ext.textContent = '↗';
+				ext.title = 'open on jamendo.com';
+				ext.addEventListener('click', function(e){ e.stopPropagation(); });
+
+				row.appendChild(name);
+				row.appendChild(dur);
+				row.appendChild(ext);
+				resultsEl.appendChild(row);
+			});
+		}
+
+		function loadJamendoTrack(t){
+			var label = t.artist + ' — ' + t.name;
+			activeTrackId = null;
+			infoEl.textContent = 'fetching ' + label + ' from jamendo…';
+			fetch(t.audio)
+				.then(function(r){
+					if (!r.ok) throw new Error('HTTP ' + r.status);
+					return r.blob();
+				})
+				.then(function(blob){
+					// Persist enough metadata to re-fetch and replay later
+					// (from a row in the custom-history list). audio URL is
+					// what swap() actually consumes; the rest is for the row.
+					saveTrackMeta(label, {
+						audio:     t.audio,
+						track_url: t.track_url,
+						duration:  t.duration,
+						source:    'jamendo',
+					});
+					analyzeAndPlay(blob, label, true);
+				})
+				.catch(function(err){
+					infoEl.textContent = 'jamendo fetch failed: ' + (err.message || err);
+				});
+		}
+
+		searchEl.addEventListener('input', function(e){
+			var q = e.target.value.trim();
+			if (searchTimer) clearTimeout(searchTimer);
+			if (searchAbort)  searchAbort.abort();
+			if (q.length < 2) {
+				resultsEl.innerHTML = '';
+				renderTrackList();     // back to bundled+history mode
+				return;
+			}
+			renderTrackList();         // hide bundled+history under search
+			searchTimer = setTimeout(function(){ runSearch(q); }, 350);
+		});
+		// stop key events from drifting into the game's window.onkeydown
+		searchEl.addEventListener('keydown', function(e){ e.stopPropagation(); });
+
+		// ESC anywhere → reload to the menu. Cheap "back to lobby" gesture.
+		document.addEventListener('keydown', function(e){
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				window.location.reload();
+			}
 		});
 
 		// Single path for "got an audio blob, give me a playable track":
