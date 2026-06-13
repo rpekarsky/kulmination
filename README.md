@@ -1,7 +1,12 @@
 # Kulmination
 
-A monorepo for a 2014 Three.js music-rhythm tube runner and its companion
-audio-analysis tool.
+A 2014 Three.js music-rhythm tube runner and its companion audio-analysis tool.
+
+[![Kulmination — click to play](preview.png)](https://rpekarsky.github.io/kulmination/)
+
+▶ **[Play in browser](https://rpekarsky.github.io/kulmination/)**
+
+---
 
 > ⚠️ **Prototype.** This is a 2014 unfinished hobby project. The gameplay
 > code is old, raw and unpolished — wasn't shipped, wasn't reviewed, wasn't
