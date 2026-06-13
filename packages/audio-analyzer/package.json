@@ -6,7 +6,7 @@
     "start": "http-server -p 8766 -c-1 ."
   },
   "author": "Roman Pekarsky <contact@rpekarsky.com>",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=20"
   },

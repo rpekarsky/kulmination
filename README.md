@@ -50,4 +50,4 @@ audio files that aren't shipped — those tracks load patterns but stay silent.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Code: **[GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)** (see [`LICENSE`](./LICENSE)). Self-hosting, forking, and modification are welcome — but any modified version distributed or run as a network service must release its source under the same license. Bundled third-party libraries remain under their original licenses (Three.js MIT, dat.gui MIT, GreenSock, OpenSans/Ubuntu fonts) and are listed in the same file.
