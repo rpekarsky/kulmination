@@ -50,6 +50,10 @@ Bundled audio under `packages/game/tracks/` is freely-licensed Pixabay
 content (`alexguz`, `jumpingbunny`, `nveravetyanmusic`, `sunsides`,
 `the_mountain`).
 
+The in-game Jamendo search hits a separate Cloudflare Worker that holds
+the Jamendo client_id in CF Secret storage (Jamendo ToS forbids exposing
+it in client code). Source: [rpekarsky/kulmination-worker](https://github.com/rpekarsky/kulmination-worker).
+
 ## License
 
 [GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html). See [`LICENSE`](./LICENSE).
