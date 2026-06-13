@@ -25,7 +25,7 @@ Obstacles.update = function () {
 		} else {
 			if (obj.collided) {
 				scoring.hit();
-				if (typeof SFX !== 'undefined') SFX.play('explosion');
+				if (typeof SFX !== 'undefined') SFX.play('damage');
 			} else {
 				scoring.avoided(50);
 				gameCam.shakeValue += 0.2;

@@ -3,6 +3,14 @@
 A monorepo for a 2014 Three.js music-rhythm tube runner and its companion
 audio-analysis tool.
 
+> ⚠️ **Prototype.** This is a 2014 unfinished hobby project. The gameplay
+> code is old, raw and unpolished — wasn't shipped, wasn't reviewed, wasn't
+> refactored. The 2026 revival wraps the original logic in a runnable web
+> app via AI-assisted vibe-coding (Claude Code). The core game logic
+> (spline tube, obstacle/coin spawn from beats, scoring math) is the
+> original 2014 code; the surrounding scaffolding — DnD, search,
+> highscores, hint UX, audio pipeline — is freshly vibe-coded on top.
+
 Mercurial history (12 commits) was preserved through hg-fast-export → git,
 then layered with the 2014-12 working-state recovery and a 2026 revival
 pass that wraps the original gameplay logic in a runnable web app.
