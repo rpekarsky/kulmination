@@ -32,7 +32,7 @@ document.body.appendChild(logDOM);
 
 outputElementDOM = document.createElement('div'); document.body.appendChild(outputElementDOM);
 
-context = new webkitAudioContext();
+context = new (window.AudioContext || window.webkitAudioContext)();
 audio = new Audio();
 
 log = function(str){

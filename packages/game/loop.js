@@ -4,13 +4,43 @@ var time = 0;
 var rotateDelta = 0;
 	// curLoopTime = 0.01837088491626749;
 	lptm = 10000;
+
+// Firefox advances HTMLAudioElement.currentTime in coarse steps tied to audio
+// buffer boundaries (~100ms on Linux), while Chrome updates it nearly per-frame.
+// Since the whole timeline is driven by curLoopTime = audio.currentTime/duration,
+// reading it directly each frame stair-steps and produces visible jerks on FF.
+// We interpolate via performance.now() between samples and resync only on big
+// jumps (loop wrap, seek, pause/resume).
+var __playStartPerf = null;
+var __playStartAudio = 0;
+function getSmoothedAudioTime(){
+	var actual = MPlayer.audio.currentTime;
+	var duration = MPlayer.audio.duration;
+	if (MPlayer.audio.paused || !duration || isNaN(duration)) {
+		__playStartPerf = null;
+		return actual;
+	}
+	if (__playStartPerf === null || actual < __playStartAudio - 0.5) {
+		__playStartPerf = performance.now();
+		__playStartAudio = actual;
+		return actual;
+	}
+	var smoothed = __playStartAudio + (performance.now() - __playStartPerf) / 1000;
+	if (Math.abs(smoothed - actual) > 0.3) {
+		__playStartPerf = performance.now();
+		__playStartAudio = actual;
+		return actual;
+	}
+	return smoothed;
+}
+
 function mainloop(){
 	// lastXto
 	time = Date.now();
 	// time = 0;
 	// var lptm = controller.loopTime;
 	// curLoopTime = ((time - lptm) %  lptm)/lptm;
-	curLoopTime = MPlayer.audio.currentTime/MPlayer.audio.duration;
+	curLoopTime = getSmoothedAudioTime() / MPlayer.audio.duration;
 	// curLoopTime += 0.01837088491626749/1000;
 	lastX += (lastXto - lastX)*0.05;
 	if(lastXto == width/2){

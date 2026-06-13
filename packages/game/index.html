@@ -19,6 +19,33 @@
 		color: white;
 		text-shadow: 5px 5px 10px rgba(0,0,0,0.3), 2px 2px 0px rgba(0,0,0,0.7), 1px 1px rgba(0,0,0,0.8);
 	}
+	.overlay {
+		position: fixed;
+		bottom: 0; left: 0; right: 0;
+		padding: 8px 14px;
+		background: rgba(0,0,0,0.35);
+		z-index: 100;
+		font-family: monospace;
+		font-size: 11px;
+		color: #888;
+		display: flex;
+		gap: 18px;
+		align-items: center;
+		flex-wrap: wrap;
+		pointer-events: none;
+	}
+	.overlay > * { pointer-events: auto; }
+	.overlay .tracks a {
+		color: #888;
+		text-decoration: none;
+		margin-right: 7px;
+		border-bottom: 1px dotted #444;
+	}
+	.overlay .tracks a:hover { color: #ddd; border-bottom-color: #888; }
+	.overlay .tracks a.active { color: #fff; font-weight: bold; border-bottom-color: #fff; }
+	.overlay .tracks a.silent { color: #555; }
+	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
+	.overlay .vol input[type=range] { width: 80px; }
 </style>
 </head>
 <body>
@@ -27,24 +54,30 @@
 	<script type="text/javascript" src="js/CurveExtras.js"></script>
 	<script src="js/renderers/CSS3DRenderer.js"></script>
 	
-	<script type="text/javascript" src="luckystar_beats_local.js"		></script> 
-	<!-- 
-	<script type="text/javascript" src="korn_beats.js"			></script>
-	<script type="text/javascript" src="nightwish_beats.js"		></script>  
-	<script type="text/javascript" src="luckystar_beats.js"		></script> 
-	<script type="text/javascript" src="rise_beats.js"		></script>  
-	<script type="text/javascript" src="nightwish_imagenaerum_beats.js"		></script>  
-	<script type="text/javascript" src="30sec_beats.js"			></script>     
-	<script type="text/javascript" src="caramell_beats.js"		></script>    
-	<script type="text/javascript" src="muse_beats.js"		></script>    
-	<script type="text/javascript" src="soulshop_beats.js"		></script>
-	<script type="text/javascript" src="Nickelback_beats.js"	></script> 
-	<script type="text/javascript" src="lie_beats.js"			></script>
-	<script type="text/javascript" src="dirt_beats.js"			></script> 
-	<script type="text/javascript" src="pushnoy_beats.js"		></script>
-	<script type="text/javascript" src="prodigy_beats.js"		></script>
-	<script type="text/javascript" src="jim_beats.js"			></script> 
-	-->
+	<!-- Track loader: ?track=NAME picks one of the *_beats.js files; default = luckystar. -->
+	<script>
+	var TRACKS = [
+		{ id: 'luckystar',              file: 'luckystar_beats_local.js',         audio: 'example10.mp3'                                              },
+		{ id: '30sec',                  file: '30sec_beats.js',                   audio: 'example8.mp3'                                               },
+		{ id: 'caramell',               file: 'caramell_beats.js',                audio: 'example24.mp3'                                              },
+		{ id: 'dirt',                   file: 'dirt_beats.js',                    audio: 'example2.mp3'                                               },
+		{ id: 'jim',                    file: 'jim_beats.js',                     audio: 'example7.mp3'                                               },
+		{ id: 'korn',                   file: 'korn_beats.js',                    audio: 'example21.mp3'                                              },
+		{ id: 'lie',                    file: 'lie_beats.js',                     audio: '/home/keto/labs/audio3/music/02. A Beautiful Lie.mp3'       },
+		{ id: 'muse',                   file: 'muse_beats.js',                    audio: '/home/keto/labs/audio3/music/Muse - Feeling Good.mp3'       },
+		{ id: 'Nickelback',             file: 'Nickelback_beats.js',              audio: 'example4.mp3'                                               },
+		{ id: 'nightwish',              file: 'nightwish_beats.js',               audio: 'example9.mp3'                                               },
+		{ id: 'nightwish_imagenaerum',  file: 'nightwish_imagenaerum_beats.js',   audio: '/home/keto/labs/audio3/music/Nightwish - Storytime (2011).mp3' },
+		{ id: 'prodigy',                file: 'prodigy_beats.js',                 audio: 'example11.mp3'                                              },
+		{ id: 'pushnoy',                file: 'pushnoy_beats.js',                 audio: 'example5.mp3'                                               },
+		{ id: 'rise',                   file: 'rise_beats.js',                    audio: '/home/keto/labs/audio3/music/Rise.mp3'                      },
+		{ id: 'soulshop',               file: 'soulshop_beats.js',                audio: 'example22.mp3'                                              }
+	];
+	var SELECTED_TRACK = (new URLSearchParams(location.search).get('track')) || 'luckystar';
+	var pickedTrack = TRACKS.find(function(t){ return t.id === SELECTED_TRACK; }) || TRACKS[0];
+	SELECTED_TRACK = pickedTrack.id;
+	document.write('<script src="' + pickedTrack.file + '"><\/script>');
+	</script>
 
 	
 	<script type="text/javascript">
@@ -59,7 +92,22 @@ var MPlayer = (function(){
 	
 	MPlayer.prototype.play = function() {
 	    this.audio.loop = true;
-	    this.audio.play();
+	    var self = this;
+	    var promise = self.audio.play();
+	    if (promise && promise.catch) {
+	        promise.catch(function(){
+	            // Autoplay blocked (Firefox/Chrome since 2017) — wait for first user gesture.
+	            var resume = function(){
+	                self.audio.play();
+	                document.removeEventListener('click', resume);
+	                document.removeEventListener('touchstart', resume);
+	                document.removeEventListener('keydown', resume);
+	            };
+	            document.addEventListener('click', resume);
+	            document.addEventListener('touchstart', resume);
+	            document.addEventListener('keydown', resume);
+	        });
+	    }
 	};
 
 	return new MPlayer();
@@ -80,5 +128,44 @@ var MPlayer = (function(){
 	<script type="text/javascript" src="main.js"></script>
 	<script type="text/javascript" src="loop.js"></script>
 	<script type="text/javascript" src="initialize.js"></script>
+
+	<div class="overlay">
+		<div class="tracks" id="track-list"></div>
+		<label class="vol">vol <input type="range" id="vol-slider" min="0" max="100"></label>
+	</div>
+	<script>
+	(function(){
+		var trackList = document.getElementById('track-list');
+		// Only the luckystar track has its audio file (example10.mp3) on disk; the
+		// rest reference missing files or absolute paths from a 2014-era machine.
+		// Mark broken tracks with .silent so users see they exist but won't play.
+		var WORKING_AUDIO = { 'example10.mp3': true };
+		TRACKS.forEach(function(t){
+			var a = document.createElement('a');
+			a.href = '?track=' + encodeURIComponent(t.id);
+			a.textContent = t.id;
+			if (t.id === SELECTED_TRACK) a.className = 'active';
+			else if (!WORKING_AUDIO[t.audio]) a.className = 'silent';
+			a.title = t.audio + (WORKING_AUDIO[t.audio] ? '' : '  (audio file missing — beats only)');
+			trackList.appendChild(a);
+		});
+
+		var slider = document.getElementById('vol-slider');
+		var savedVol = parseInt(localStorage.getItem('vol') || '50', 10);
+		slider.value = String(savedVol);
+		if (typeof MPlayer !== 'undefined' && MPlayer.audio) {
+			MPlayer.audio.volume = savedVol / 100;
+		}
+		slider.addEventListener('input', function(e){
+			var v = parseInt(e.target.value, 10);
+			if (typeof MPlayer !== 'undefined' && MPlayer.audio) {
+				MPlayer.audio.volume = v / 100;
+			}
+			localStorage.setItem('vol', String(v));
+		});
+		// Prevent slider keyboard events from also reaching the game (arrow keys)
+		slider.addEventListener('keydown', function(e){ e.stopPropagation(); });
+	})();
+	</script>
 </body>
 </html>

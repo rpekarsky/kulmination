@@ -1,0 +1,16 @@
+{
+  "name": "kulmination-audio-analyzer",
+  "version": "0.0.1",
+  "description": "Web Audio API beat-extraction tool. Loads an MP3, analyzes peaks via AnalyserNode, intended to output beats[] arrays compatible with the game's *_beats.js format. WIP / half-finished prototype from 2014.",
+  "scripts": {
+    "start": "http-server -p 8766 -c-1 ."
+  },
+  "author": "Roman Pekarsky <contact@rpekarsky.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

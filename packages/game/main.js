@@ -81,7 +81,6 @@ var pointB = spline.getPointAt(0.65);
 
 var lastX = width/2;
 window.onmousemove = function(e){
-	// console.log(e);
 	lastX = e.x;
 	if(e.altKey){
 		camera.position.x -= (width/2 -e.x)/130;
@@ -89,19 +88,17 @@ window.onmousemove = function(e){
 	}
 	if(e.ctrlKey){
 		camera.position.z += (width/2 -e.x)/130;
-		// camera.updateProjectionMatrix();
 	}
 }
 
 var lastXto = width/2;
+// Both arrow keys and WASD: left = ArrowLeft or A; right = ArrowRight or D.
 window.onkeydown = function(e){
-	if(e.keyCode == 37){
-		lastXto = 0
-		// console.log('left');
+	if(e.keyCode == 37 || e.keyCode == 65){    // Left arrow / A
+		lastXto = 0;
 	}
-	if(e.keyCode == 39){
+	if(e.keyCode == 39 || e.keyCode == 68){    // Right arrow / D
 		lastXto = width;
-		// console.log('right');
 	}
 	// console.log(e.keyCode);
 }
