@@ -1,11 +1,11 @@
 # Kulmination
 
-A monorepo for a 2014 Tizen Web Challenge entry — a Three.js music-rhythm tube
-runner — and its companion audio-analysis tool.
+A monorepo for a 2014 Three.js music-rhythm tube runner and its companion
+audio-analysis tool.
 
-Originally built in 2014 for Samsung's Tizen Web App Challenge. Mercurial
-history (12 commits) was preserved through hg-fast-export → git, then layered
-with the 2014-12 working-state recovery and a series of 2026 revival commits.
+Mercurial history (12 commits) was preserved through hg-fast-export → git,
+then layered with the 2014-12 working-state recovery and a 2026 revival
+pass that wraps the original gameplay logic in a runnable web app.
 
 ## Packages
 
@@ -37,17 +37,19 @@ nx, no turborepo). When/if a shared library emerges, switch to workspaces.
 
 ## Status
 
-🏛️ **Archive / portfolio piece.**
+🏛️ **Archive / portfolio piece, lightly revived.**
 
-The game is playable but unpolished. The analyzer is a WIP — partial Web Audio
-pipeline with no output mechanism and uses `webkitAudioContext` + deprecated
-`ScriptProcessorNode`. Needs modernization (AudioWorklet, file-picker UI,
-beats-export) before it can produce new tracks.
+Both packages launch as plain web apps in a modern browser. The game is
+playable: drop any `.mp3` (or pick a bundled track from the preset list),
+the embedded analyzer extracts a beat pattern offline in a few seconds, and
+the original 2014 obstacle-spawning logic runs against it. Scoring,
+per-track highscores, multiplier and the bundled tracks all come from a
+2026 revival pass on top of the untouched 2014 gameplay core.
 
-Only `packages/game/example10.mp3` is bundled as a playable audio asset (track:
-"luckystar"). The other 14 `*_beats.js` files in `packages/game/` reference
-audio files that aren't shipped — those tracks load patterns but stay silent.
+Bundled audio under `packages/game/tracks/` is freely-licensed Pixabay
+content (`alexguz`, `jumpingbunny`, `nveravetyanmusic`, `sunsides`,
+`the_mountain`).
 
 ## License
 
-Code: **[GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)** (see [`LICENSE`](./LICENSE)). Self-hosting, forking, and modification are welcome — but any modified version distributed or run as a network service must release its source under the same license. Bundled third-party libraries remain under their original licenses (Three.js MIT, dat.gui MIT, GreenSock, OpenSans/Ubuntu fonts) and are listed in the same file.
+[GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html). See [`LICENSE`](./LICENSE).

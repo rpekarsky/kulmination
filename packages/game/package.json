@@ -1,7 +1,7 @@
 {
   "name": "kulmination",
   "version": "0.0.1",
-  "description": "Three.js music-rhythm tube runner. 2014 Tizen Web Challenge entry, revived 2026.",
+  "description": "Three.js music-rhythm tube runner — 2014 original, 2026 web revival.",
   "scripts": {
     "build": "node build-manifest.js",
     "prestart": "node build-manifest.js",
