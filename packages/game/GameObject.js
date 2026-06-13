@@ -83,27 +83,27 @@ var GameObject = (function(){
 			}
 		}
 
-		if(MPlayer.audio.currentTime*1000 >= this.timestamp){
+		// Use the same smoothed time the visual rendering uses
+		// (getSmoothedAudioTime in loop.js — wall-clock interpolation between
+		// Firefox's coarse audio.currentTime steps). Otherwise testPassed lags
+		// the smoothed clock by up to ~100ms and the player visually passes
+		// through the obstacle before the collider catches up.
+		if(getSmoothedAudioTime()*1000 >= this.timestamp){
 			return true;
-			
-			
 		}
 		return false;
 	};
 
 	GameObject.prototype.testCollide = function() {
 		var delta = getADistance(this.rotation,angle,360);
-		if(delta < this.delta/2){
-			if(!this.collided){
-				this.collided = true;
-				if(this.collideOnCallback){this.collideOnCallback();}
-			}
-		} else {
-			// if(this.collided){
-			// 	this.collided = false;
-				// if(this.collideOffCallback){this.collideOffCallback();}
-			// }
-			if(this.collideOffCallback){this.collideOffCallback();}
+		// Edge-trigger: collideOnCallback fires ONCE on the leading edge of the
+		// collision zone. The old code also ran collideOffCallback every frame
+		// the player wasn't overlapping — that caused pass.wav + +50 score to
+		// stack on every visible RotateObstacle every frame. Per-block "you
+		// avoided this" / "you got hit" is now decided in Obstacles.update.
+		if(delta < this.delta/2 && !this.collided){
+			this.collided = true;
+			if(this.collideOnCallback){this.collideOnCallback();}
 		}
 	};
 	return GameObject;

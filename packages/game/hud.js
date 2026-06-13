@@ -49,33 +49,71 @@ var HudScore = (function () {
 })();
 
 var HudMultipler = (function () {
-	function HudMultipler(dom){
+	function HudMultipler(){
 		this.dom = document.createElement('div');
-		this.dom.className = 'multipler-hud';
-		this.progress = document.createElement('div');
-		this.multipler = document.createElement('div');
-		this.dom.appendChild(this.progress);
-		this.dom.appendChild(this.multipler);
-		this.scale = 1;
-		
+		this.dom.className = 'score-hud';
+		this.dom.style.fontSize = '32pt';        // bigger than score's 20pt
+		this.scale     = 1;
+		this.baseScale = 1;
+		this.multiplier = 1;
+
 		this.object = new hudObject(this.dom);
-		this.object.objPos.position.y = 250;
-		this.object.objPos.position.z = 50;
-		this.object.objPos.position.x = 250;
-		this.object.objRotation.rotation.x = -3*TO_RADIANS
-		this.multipler.textContent = 'x3';
-		this.progress.textContent = '0.2';
+		// Bottom-right corner: positive X, negative Y in hudScene coords.
+		this.object.objPos.position.x =  250;
+		this.object.objPos.position.y = -250;
+		this.object.objPos.position.z =   50;
+		this.object.objRotation.rotation.x = -3*TO_RADIANS;
+		this.dom.textContent = '';
 	}
-	HudMultipler.prototype.setScore = function(score) {
+	HudMultipler.prototype.setMultiplier = function(m){
+		this.multiplier = m;
+		if (m <= 1) {
+			this.dom.textContent = '';
+			this.baseScale = 0;                  // hide while at 1
+		} else {
+			this.dom.textContent = 'x' + m;
+			// Grows with multiplier, capped so it doesn't overflow the screen.
+			this.baseScale = 1 + Math.min(m - 1, 7) * 0.18;
+		}
 	};
-	HudMultipler.prototype.update = function() {
+	// Pop on multiplier increment.
+	HudMultipler.prototype.bump = function(){
+		this.scale = this.baseScale + 0.9;
+	};
+	HudMultipler.prototype.update = function(){
+		this.scale += (this.baseScale - this.scale) * 0.1;
+		this.object.objScale.scale.set(this.scale, this.scale, 1);
 	};
 	return HudMultipler;
 })();
 
+var HudBest = (function () {
+	function HudBest(){
+		this.dom = document.createElement('div');
+		this.dom.className = 'score-hud';
+		this.dom.style.fontSize = '14pt';
+		this.dom.style.opacity = '0.7';
+		this.scale = 1;
 
-var scoreHud = new HudScore();
-// var multiplerHud = new HudMultipler();
+		this.object = new hudObject(this.dom);
+		// Top-left corner of the HUD.
+		this.object.objPos.position.x = -250;
+		this.object.objPos.position.y =  250;
+		this.object.objPos.position.z =   50;
+		this.object.objRotation.rotation.x = -3*TO_RADIANS;
+		this.dom.textContent = '';
+	}
+	HudBest.prototype.setBest = function(n){
+		this.dom.textContent = n ? ('BEST ' + n) : '';
+	};
+	HudBest.prototype.update = function(){};
+	return HudBest;
+})();
+
+
+var scoreHud     = new HudScore();
+var multiplerHud = new HudMultipler();
+var bestHud      = new HudBest();
 
 
 hudRenderer.setSize( window.innerWidth, window.innerHeight );

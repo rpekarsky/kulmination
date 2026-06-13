@@ -35,6 +35,12 @@ function getSmoothedAudioTime(){
 }
 
 function mainloop(){
+	// Pause everything while swap() is rebuilding the spline + obstacles.
+	// gameCam.update() and other per-frame work would otherwise consume RNG
+	// state in between reseed() and tube.js executing → non-deterministic
+	// tube z-jitter / obstacle rotations across replays.
+	if (window.__rebuilding) return;
+
 	// Preview mode: no audio loaded, no beats, no obstacles. Drive curLoopTime
 	// with a wall-clock 60s loop so the camera ambles around the tube as an
 	// idle screensaver until the user drops files.
@@ -84,6 +90,7 @@ function mainloop(){
 
 	
 	scoreHud.update();
+	multiplerHud.update();
 	hudWrapper.rotation.z = rotateDelta*20*TO_RADIANS;
 	hudWrapper.rotation.y = rotateDelta*5*TO_RADIANS;
 }

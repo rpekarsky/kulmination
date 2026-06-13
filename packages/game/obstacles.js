@@ -7,19 +7,47 @@ var DangerMaterial = new THREE.MeshBasicMaterial( { color: 0xf0f0f0, wireframe:f
 var DangerMaterial2 = new THREE.MeshBasicMaterial( { color: 0xb0d0df, wireframe:false, transparent: false ,shading: 1, opacity: 0.6 , fog: true} );
 
 
-Obstacles.SCALE = 3; 
-Obstacles.curCollideTestNum = 0; 
-Obstacles.screen = 30; 
+Obstacles.SCALE = 3;
+Obstacles.curCollideTestNum = 0;
+Obstacles.screen = 45;       // +50% from the original 30: longer look-ahead
+Obstacles.trackFinished = false;
 Obstacles.update = function () {
 	while(this.objects[Obstacles.curCollideTestNum] && this.objects[Obstacles.curCollideTestNum].testPassed()){
-		this.objects[Obstacles.curCollideTestNum].testCollide();
+		var obj = this.objects[Obstacles.curCollideTestNum];
+		obj.testCollide();
+
+		// Per-element score event at the moment the obstacle slides past the
+		// player. testCollide above already flipped obj.collided if the
+		// player was in its delta zone earlier — read that flag now.
+		if (obj.kind === 'coin') {
+			if (obj.collided) scoring.pickup(100);
+			// missed coin: silent, no penalty
+		} else {
+			if (obj.collided) {
+				scoring.hit();
+				if (typeof SFX !== 'undefined') SFX.play('explosion');
+			} else {
+				scoring.avoided(50);
+				gameCam.shakeValue += 0.2;
+			}
+		}
+
 		Obstacles.curCollideTestNum++;
 		if(this.objects[Obstacles.curCollideTestNum+Obstacles.screen]) this.objects[Obstacles.curCollideTestNum+Obstacles.screen].add();
 		if(this.objects[Obstacles.curCollideTestNum-Obstacles.screen/2]) this.objects[Obstacles.curCollideTestNum-Obstacles.screen/2].remove();
 	}
+
+	// End of track: last block has been flushed. Save highscore once, then
+	// emit `track-finished` so the menu (hint card) can reappear.
+	if (!Obstacles.trackFinished && Obstacles.curCollideTestNum >= this.objects.length && this.objects.length > 0) {
+		Obstacles.trackFinished = true;
+		scoring.maybeSaveBest();
+		window.dispatchEvent(new CustomEvent('track-finished'));
+	}
+
 	for (var i = Obstacles.curCollideTestNum; i < Obstacles.curCollideTestNum+Obstacles.screen; i++) {
 		if(i<this.objects.length){
-			this.objects[i].update();			
+			this.objects[i].update();
 		}
 	};
 }
@@ -68,29 +96,18 @@ Obstacles.RotateObstacle=(function(){
 	// 	GameObject.prototype.testCollide.call(this);
 	// };
 
+	RotateObstacle.prototype.kind = 'obstacle';
+	// Edge-trigger only: fires once when the player first overlaps this
+	// obstacle's angular zone. Just visual flash + camera shake here — the
+	// scoring.hit() call and explosion SFX both happen later in
+	// Obstacles.update, which dedupes the SFX so a block of 3 doesn't stack
+	// three explosion sounds on top of each other.
 	RotateObstacle.prototype.collideOnCallback = function() {
 		parent.collideOnCallback.call(this);
 		colorHSL.l = 0;
 		gameCam.shakeValue += 2;
 		gameCam.fovTo = 60;
 		gameCam.fovSpeed = 0.02;
-		SCORE -= 250;
-		scoreHud.setScore(SCORE);
-		if (typeof SFX !== 'undefined') SFX.play('explosion');
-	};
-	RotateObstacle.prototype.collideOffCallback = function() {
-		parent.collideOffCallback.call(this);
-		// colorHSL.h -= 0.3;
-		gameCam.shakeValue += 0.2;
-		SCORE += 50;
-		scoreHud.setScore(SCORE);
-		if (typeof SFX !== 'undefined') SFX.play('pass');
-		// scoreHud.setScore(SCORE);
-
-		// gameCam.fov = 110;
-		// gameCam.fovSpeed = 0.05;
-		// colorHSL.l -= 0.1;
-		// colorHSL.s = 1//colorHSLMain.s+0.2;
 	};
 	RotateObstacle.prototype.update = function(){
 		this.rotation += this.calculatedSpeed;
@@ -152,6 +169,7 @@ Obstacles.Coin=(function(){
 
 	};
 
+	Coin.prototype.kind = 'coin';
 	Coin.prototype.collideOnCallback = function() {
 		parent.collideOnCallback.call(this);
 		colorHSLMain.h = (colorHSLMain.h+0.1)%1;//Math.random();
@@ -161,8 +179,6 @@ Obstacles.Coin=(function(){
 		gameCam.fovTo += 5;
 		gameCam.fovSpeed = 0.02
 		gameCam.shakeValue += 0.02;
-		SCORE += 100;
-		scoreHud.setScore(SCORE);
 		if (typeof SFX !== 'undefined') SFX.play(this.big ? 'blip2' : 'blip');
 	};
 

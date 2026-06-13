@@ -92,24 +92,34 @@ window.onmousemove = function(e){
 }
 
 var lastXto = width/2;
-// Both arrow keys and WASD: left = ArrowLeft or A; right = ArrowRight or D.
+
+// Movement keys: ArrowLeft / A → left, ArrowRight / D → right.
+// Held-key stack: the MOST RECENTLY pressed key still down wins, so
+// holding A, tapping D, releasing D, gives left → right → left without
+// going through neutral. onkeyup on any single key only zeroes out if
+// nothing else is held — the old code wiped lastXto on any keyup.
+var __heldKeys = [];
+function __keyDir(kc){
+	if (kc === 37 || kc === 65) return 'left';
+	if (kc === 39 || kc === 68) return 'right';
+	return null;
+}
+function __recomputeLastXto(){
+	if (!__heldKeys.length) { lastXto = width/2; return; }
+	var dir = __keyDir(__heldKeys[__heldKeys.length - 1]);
+	lastXto = dir === 'left' ? 0 : width;
+}
 window.onkeydown = function(e){
-	if(e.keyCode == 37 || e.keyCode == 65){    // Left arrow / A
-		lastXto = 0;
-	}
-	if(e.keyCode == 39 || e.keyCode == 68){    // Right arrow / D
-		lastXto = width;
-	}
-	// console.log(e.keyCode);
-}
-
-
+	if (!__keyDir(e.keyCode)) return;
+	__heldKeys = __heldKeys.filter(function(k){ return k !== e.keyCode; });
+	__heldKeys.push(e.keyCode);
+	__recomputeLastXto();
+};
 window.onkeyup = function(e){
-	// 97 // 100
-	lastXto = width/2;
-	// lastX =width/2;
-	// console.log(lastXto);
-}
+	if (!__keyDir(e.keyCode)) return;
+	__heldKeys = __heldKeys.filter(function(k){ return k !== e.keyCode; });
+	__recomputeLastXto();
+};
 
 var loopTime = 162000;
 // var loopTime = 1000 * 30;

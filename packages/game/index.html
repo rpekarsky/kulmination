@@ -33,8 +33,9 @@
 		font-size: 13px;
 		color: #ddd;
 		text-align: center;
-		max-width: 80vw;
-		min-width: 420px;
+		width: 500px;
+		max-width: 90vw;
+		box-sizing: border-box;
 	}
 	#hint.hidden { display: none; }
 	#hint h1 { margin: 0 0 8px; font-size: 18px; letter-spacing: 1px; color: #fff; font-weight: bold; }
@@ -72,6 +73,13 @@
 	#hint #track-list .item.bundled.active .name { color: #fff; font-weight: bold; }
 	#hint #track-list .item.custom { opacity: 0.7; }
 	#hint #track-list .item.custom .name { color: #8c8; font-style: italic; cursor: default; }
+	#hint #track-list .item .clear {
+		cursor: pointer; padding: 0 4px; user-select: none; flex: 0 0 auto;
+	}
+	#hint #track-list .item.bundled .clear        { color: #aaa; }
+	#hint #track-list .item.bundled.active .clear { color: #fff; }
+	#hint #track-list .item.custom .clear         { color: #8c8; }
+	#hint #track-list .item .clear:hover          { color: #f88; }
 	#hint #track-list .empty { color: #555; padding: 4px 0; font-style: italic; }
 	#audio-prompt {
 		margin: 0 0 8px;
@@ -124,7 +132,7 @@
 		<h1>Kulmination</h1>
 		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
 		<div id="track-list">loading tracks…</div>
-		<div class="sub">drop your own .mp3 anywhere &middot; need beats? <a href="../audio-analyzer/" target="_blank">audio analyzer</a></div>
+		<div class="sub">drop your own .mp3 anywhere &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
 	</div>
 
 	<div id="drop-overlay"><span>drop <strong>audio</strong> (.mp3/.wav/.ogg) — beats are analyzed on the fly</span></div>
@@ -160,6 +168,7 @@
 	//   - no sessionStorage, no location.reload.
 	(function(){
 		var GAME_SCRIPTS = [
+			'rng.js',
 			'MPlayer.js',
 			'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 			'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
@@ -252,6 +261,10 @@
 		// `isCustom` decides whether the highscore lands under the bundled or
 		// custom namespace (custom rows show up greyed-out in the list).
 		function swap(beatsText, audioBlobUrl, label, isCustom){
+			// 0. Freeze the render loop while we rebuild — keeps reseed() →
+			//    tube.js → loadBeats() → addPlates() RNG-deterministic.
+			window.__rebuilding = true;
+
 			// 1. Remove current visual meshes from scene.
 			if (window.tubeMesh) scene.remove(window.tubeMesh);
 			if (window.BgPlate && window.BgPlate.prototype && window.BgPlate.prototype.mesh) {
@@ -261,7 +274,6 @@
 			// 2. Drop obstacles (preview has none; a previous real track has them).
 			Obstacles.objects = [];
 			Obstacles.curCollideTestNum = 0;
-			Obstacles._lastSfxTs = -1;
 			Obstacles.trackFinished = false;
 
 			// 3. Install new beats / duration / musicSrc as window globals.
@@ -297,7 +309,12 @@
 			window.lastBeatTime = 0;
 			window.SCORE        = 0;
 
-			// 6. Rebuild spline / tube / BgPlate constructor with the NEW duration.
+			// 6. Reseed the PRNG so this rebuild produces the same tube z-jitter,
+			//    obstacle rotations and bg plate distribution as any previous /
+			//    future replay of the same track.
+			window.reseed(SEED);
+
+			// 7. Rebuild spline / tube / BgPlate constructor with the NEW duration.
 			//    tube.js declares everything with top-level `var`, so a re-inject
 			//    reassigns the window globals (splinePoints, spline, level,
 			//    tubeMesh, BgPlate, BgWall). Old ones become garbage.
@@ -313,11 +330,13 @@
 				scoring.reset(label, isCustom);
 
 				window.PREVIEW = false;
+				window.__rebuilding = false;
 				infoEl.textContent = label;
 				enterGameState();
 				renderTrackList();
 				MPlayer.play();
 			}).catch(function(err){
+				window.__rebuilding = false;
 				infoEl.textContent = 'rebuild failed: ' + (err && err.message || err);
 			});
 		}
@@ -366,7 +385,7 @@
 		}
 		function renderTrackList(){
 			trackListEl.innerHTML = '';
-			function rowFor(name, score, isBundled, onClick, isActive){
+			function rowFor(name, score, isBundled, storageKey, onClick, isActive){
 				var row = document.createElement('div');
 				row.className = 'item ' + (isBundled ? 'bundled' : 'custom') + (isActive ? ' active' : '');
 				var n = document.createElement('span');
@@ -379,20 +398,37 @@
 				s.textContent = score ? score : '—';
 				row.appendChild(n);
 				row.appendChild(s);
+				// Clear (×). Always present.
+				//   bundled row → removes the highscore entry; if there wasn't
+				//     one it's a no-op (storage stays empty, score stays "—")
+				//   custom row  → removes the entry AND the row from the list
+				//     (the row only exists because of its storage entry)
+				var x = document.createElement('span');
+				x.className = 'clear';
+				x.textContent = '×';
+				x.title = isBundled ? 'clear highscore' : 'remove from list';
+				x.addEventListener('click', function(e){
+					e.preventDefault();
+					e.stopPropagation();
+					localStorage.removeItem(storageKey);
+					renderTrackList();
+				});
+				row.appendChild(x);
 				return row;
 			}
 			var bundlePrefix = (typeof scoring !== 'undefined') ? scoring.BUNDLED_PREFIX : 'kulm_best_';
+			var customPrefix = (typeof scoring !== 'undefined') ? scoring.CUSTOM_PREFIX  : 'kulm_best_custom_';
 			presets.forEach(function(t){
 				var best = parseInt(localStorage.getItem(bundlePrefix + t.id) || '0', 10) || 0;
 				var isActive = activeTrackId === t.id;
-				var row = rowFor(t.id, best, true, function(e){
+				var row = rowFor(t.id, best, true, bundlePrefix + t.id, function(e){
 					e.preventDefault();
 					loadPreset(t);
 				}, isActive);
 				trackListEl.appendChild(row);
 			});
 			listCustomEntries().forEach(function(c){
-				trackListEl.appendChild(rowFor(c.id, c.score, false, null, false));
+				trackListEl.appendChild(rowFor(c.id, c.score, false, customPrefix + c.id, null, false));
 			});
 			if (!presets.length && !listCustomEntries().length) {
 				var empty = document.createElement('div');
