@@ -16,9 +16,8 @@ MainMenu = (function(){
 			btn.textContent = Collection[i].path;
 			btn.obj = Collection[i];
 			btn.onclick = function(){
-				APP.changeState(new GamePage(this.obj));
+				APP.changeState(new GamePage(this.obj.path));
 			}
-			// btn.onclick = btn.ontouchstart;
 			this.DOM.appendChild(btn);
 		};
 
@@ -27,15 +26,13 @@ MainMenu = (function(){
 	MainMenu.prototype = {
 		init:function(){
 			this.DOM.className = 'page MainMenu';
-			// APP.changeState(new GamePage(Collection[0]));
 		},
 		show:function(){
 			document.body.appendChild(this.DOM);
 		},
 		hide:function(){
-
-			this.DOM.parentNode.removeChild(this.DOM);
-			console.log('MENU hided!');
+			this.DOM.remove();
+			console.log('hided!');
 		}
 	}
 	return MainMenu;

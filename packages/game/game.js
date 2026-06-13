@@ -1,12 +1,11 @@
-
 var APP = {
+	mainmenu:new MainMenu(),
+	game: undefined,
 	currentState: undefined,
 	init:function(){
-		console.log('init');
-		this.changeState(new MainMenu());
+		this.changeState(this.mainmenu);
 	},
 	changeState:function(state){
-		console.log(state.text);
 		if(this.currentState){
 			this.currentState.hide();
 		}

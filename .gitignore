@@ -1,0 +1,5 @@
+.hg/
+.remember/
+.DS_Store
+*.log
+node_modules/

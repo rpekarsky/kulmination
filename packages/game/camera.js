@@ -1,12 +1,11 @@
 var GameCamera = (function () {
-	function GameCamera (Game) {
-		this.game = Game;
+	function GameCamera () {
 		this.height = 15;
 		this.fovNormal = 85;
 		this.fov = this.fovNormal;
 		this.fovSpeed = 0.1;
 		this.fovTo = 0.1;
-		this.camera = new THREE.PerspectiveCamera( this.fov, Renderer.width / Renderer.height, 0.1, 10000 );
+		this.camera = new THREE.PerspectiveCamera( this.fov, width / height, 0.1, 10000 );
 		this.angle = 0;
 		this.shake = new THREE.Vector3();
 		this.shakeValue = 0.3;
@@ -14,36 +13,34 @@ var GameCamera = (function () {
 		this.init();
 	}
 	GameCamera.prototype.init = function() {
-		this.game.scene.add(this.camera);
+		scene.add(this.camera);
 	};
 	GameCamera.prototype.update = function() {
-		this.angle += (this.game.angle - this.angle)*0.2;
-		var offset = 50/this.game.tube.length
+		this.angle += (angle - this.angle)*0.2;
+		var offset = 50/level.length
 
 		this.fovTo += (this.fovNormal - this.fovTo)*this.fovSpeed;
 		this.fov += (this.fovTo - this.fov)*0.4;
 
 		var fovdelta = (this.fovNormal - this.fov)/this.fovNormal;
 		// var offset = 2
-		var loc = Math.abs(this.game.timePosition-offset-offset*fovdelta)%1;
-		// console.log(loc);
-		var v4 = this.game.tube.spline.getPointAt(loc);
-		var v4d = this.game.tube.spline.getTangentAt(Math.abs(this.game.timePosition-offset)%1);
+		var v4 = spline.getPointAt(Math.abs(curLoopTime-offset-offset*fovdelta));
+		var v4d = spline.getTangentAt(Math.abs(curLoopTime-offset));
 
 
-		// var v4 = spline.getPointAt(this.game.timePosition);
-		// var v4d = spline.getTangentAt(this.game.timePosition);
+		// var v4 = spline.getPointAt(curLoopTime);
+		// var v4d = spline.getTangentAt(curLoopTime);
 		this.shake.x = Math.random()*2-1;
 		this.shake.y = Math.random()*2-1;
 		this.shake.z = Math.random()*2-1;
 
-		var v4n = this.game.tube.spline.getPointAt((this.game.timePosition+offset*7)%1);
-		var v4nd = this.game.tube.spline.getTangentAt((this.game.timePosition+offset*7)%1);
+		var v4n = spline.getPointAt((curLoopTime+offset*5)%1);
+		var v4nd = spline.getTangentAt((curLoopTime+offset*5)%1);
 		this.calculatedPosition = new THREE.Vector3(v4.x,v4.y,v4.z);
 		this.calculatedDirection = new THREE.Vector3(v4d.x,v4d.y,v4d.z);
 
 		var cross = this.calculatedDirection.clone().cross(vectorUp);
-		this.camera.position = this.calculatedPosition.clone().add(cross.applyAxisAngle(this.calculatedDirection,this.angle*TO_RADIANS).multiplyScalar(this.game.tube.radius-this.height));
+		this.camera.position = this.calculatedPosition.clone().add(cross.applyAxisAngle(this.calculatedDirection,this.angle*TO_RADIANS).multiplyScalar(tubeRadius-this.height));
 		this.camera.position.add(this.shake.multiplyScalar(this.shakeValue));
 		this.camera.up = cross.clone().negate();
 		
@@ -56,7 +53,7 @@ var GameCamera = (function () {
 
 		
 		// this.light.target;
-		// this.lightTarget.position = spline.getPointAt((this.game.timePosition+0.2)%1);
+		// this.lightTarget.position = spline.getPointAt((curLoopTime+0.2)%1);
 		this.camera.lookAt(v4n);
 		this.camera.fov = this.fov;
 		this.camera.updateProjectionMatrix();
