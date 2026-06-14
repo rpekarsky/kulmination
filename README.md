@@ -2,9 +2,9 @@
 
 A 2014 Three.js music-rhythm tube runner and its companion audio-analysis tool.
 
-[![Kulmination — click to play](preview.png)](https://rpekarsky.github.io/kulmination/)
+[![Kulmination — click to play](preview.png)](https://play.kulmination.app/)
 
-▶ **[Play in browser](https://rpekarsky.github.io/kulmination/)**
+▶ **[Play in browser](https://play.kulmination.app/)**
 
 ---
 
