@@ -12,10 +12,12 @@ compatibility_date = "2024-12-01"
 directory = "packages/game"
 binding   = "ASSETS"
 
-# Build runs before the Worker is uploaded. Produces dist/game.bundle.min.js
-# inside packages/game/ which the static asset server then exposes.
+# Build delegates to a single explicit shell script — see the file for
+# what runs and why. Single source of truth for build steps + tool
+# versions; CF's build env diagnostics get dumped to the log on every
+# run so failures aren't opaque.
 [build]
-command = "cd packages/game && pnpm install --frozen-lockfile && pnpm run build"
+command = "bash packages/game/.deploy/build.sh"
 
 # Optional — KV namespace for caching Audius track metadata (1h TTL).
 # Worker degrades to direct-API calls if this binding is missing, so it's
