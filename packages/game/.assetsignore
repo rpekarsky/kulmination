@@ -1,0 +1,10 @@
+node_modules
+.deploy
+build.js
+build-manifest.js
+vite.config.js
+package.json
+pnpm-lock.yaml
+game-scripts.js
+player_backup.js
+3dindex.html
