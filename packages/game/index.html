@@ -1,8 +1,51 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kulmination</title>
+<title>Kulmination — web rhythm tube runner</title>
+<meta name="description" content="Open-source rhythm runner in your browser. Drop any audio or search Audius — beats are analyzed on the fly, no install.">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://rpekarsky.github.io/kulmination/">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+<meta property="og:type"        content="website">
+<meta property="og:site_name"   content="Kulmination">
+<meta property="og:title"       content="Kulmination — web rhythm tube runner">
+<meta property="og:description" content="Drop your music or search Audius. Beats analyzed in the browser. Open source.">
+<meta property="og:url"         content="https://rpekarsky.github.io/kulmination/">
+<meta property="og:image"       content="https://rpekarsky.github.io/kulmination/thumbnail.png">
+<meta property="og:image:width"  content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="Kulmination — web rhythm tube runner">
+<meta name="twitter:description" content="Drop your music or search Audius. Beats analyzed in the browser.">
+<meta name="twitter:image"       content="https://rpekarsky.github.io/kulmination/thumbnail.png">
+
+<link rel="preload" href="fonts/WebPlus_IBM_VGA_8x16.woff" as="font" type="font/woff" crossorigin>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Kulmination",
+  "description": "Open-source browser rhythm tube runner driven by user-supplied audio.",
+  "url": "https://rpekarsky.github.io/kulmination/",
+  "image": "https://rpekarsky.github.io/kulmination/thumbnail.png",
+  "applicationCategory": "Game",
+  "operatingSystem": "Web Browser",
+  "genre": ["Rhythm", "Music", "Indie"],
+  "author": {
+    "@type": "Person",
+    "name": "Roman Pekarsky",
+    "url": "https://rpekarsky.com"
+  },
+  "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "isAccessibleForFree": true
+}
+</script>
+
 <!-- analytics -->
 <style type="text/css">
 	/* Font: Oldschool PC Font Pack by VileR (CC BY-SA 4.0)
@@ -14,34 +57,36 @@
 		font-display: swap;
 	}
 
-	/* CRT TUI palette — strict monochrome. Differentiation via brightness
-	   levels and structural elements (boxes, borders, italic), not hue.
-	   Score-hud keeps its own white styling. */
+	/* CRT TUI palette — strict monochrome on a light glass surface.
+	   Panels are translucent + blurred (almost-white over the dark game
+	   canvas); text and borders go dark. Heavy modals (loading-overlay)
+	   stay dark and override to light text locally. Score-hud over the
+	   raw canvas keeps its own explicit white styling. */
 	:root {
-		--bg-panel:    rgba(0,0,0,0.62);
-		--bg-input:    rgba(255,255,255,0.06);
+		--bg-panel:    rgba(255,255,255,0.06);
+		--bg-input:    rgba(0,0,0,0.18);
 		--bg-drop:     rgba(255,255,255,0.12);
 		--bg-modal:    rgba(0,0,0,0.7);
 
-		--border:      rgba(255,255,255,0.20);
-		--border-hot:  rgba(255,255,255,0.55);
-		--border-dash: rgba(255,255,255,0.20);
+		--border:      rgba(0,0,0,0.32);
+		--border-hot:  rgba(0,0,0,0.65);
+		--border-dash: rgba(0,0,0,0.32);
 
-		--fg:          #ddd;
-		--fg-bright:   #fff;
-		--fg-muted:    #999;
-		--fg-dim:      #666;
+		--fg:          #222;
+		--fg-bright:   #000;
+		--fg-muted:    #555;
+		--fg-dim:      #888;
 
-		--warn:        #fff;
-		--warn-bg:     rgba(255,255,255,0.06);
-		--warn-bd:     rgba(255,255,255,0.35);
+		--warn:        #000;
+		--warn-bg:     rgba(255,200,40,0.30);
+		--warn-bd:     rgba(0,0,0,0.55);
 
-		--info:        #fff;
-		--info-bg:     rgba(255,255,255,0.08);
-		--info-bd:     rgba(255,255,255,0.40);
+		--info:        #000;
+		--info-bg:     rgba(120,200,255,0.30);
+		--info-bd:     rgba(0,0,0,0.55);
 
-		--error:       #fff;
-		--accent:      #fff;       /* custom-replayable rows (italic in CSS) */
+		--error:       #000;
+		--accent:      #000;       /* custom-replayable rows (italic in CSS) */
 
 		--radius:      2px;
 		--ui-scale:    1.2;        /* scales system UI font sizes; score-hud excluded */
@@ -56,19 +101,51 @@
 	}
 	canvas { display: block; }
 
-	.score-hud{
-		font-size: 32px;
-		font-family: 'IBM VGA 8x16', monospace;
+	/* Single HUD overlay — best (top-left), score (center), multiplier+streak
+	   (right). One rotation transform applied to #game-hud in loop.js tilts
+	   the whole sheet together (tachometer-style). 8-way pixel outline +
+	   hard drop shadow is inherited by all children. */
+	#game-hud {
+		position: fixed;
+		bottom: 24px;
+		left: 50%;
+		transform: translateX(-50%);
+		/* Pivot the whole-HUD rotation from roughly screen-center instead of
+		   the HUD's own center. Tachometer-on-a-dashboard feel: bank-left
+		   swings the HUD like it's mounted to a point above. */
+		transform-origin: 50% -50vh;
+		width: 500px;
+		max-width: 90vw;
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-end;
+		z-index: 105;
+		pointer-events: none;
 		color: white;
-		text-shadow: 5px 5px 10px rgba(0,0,0,0.3), 2px 2px 0px rgba(0,0,0,0.7), 1px 1px rgba(0,0,0,0.8);
+		font-family: 'IBM VGA 8x16', monospace;
+		text-shadow:
+			-1px -1px 0 #000,  0 -1px 0 #000,  1px -1px 0 #000,
+			-1px  0   0 #000,                  1px  0   0 #000,
+			-1px  1px 0 #000,  0  1px 0 #000,  1px  1px 0 #000,
+			 2px  3px 0 rgba(0,0,0,0.85);
 	}
+	#game-hud .hud-col { display: flex; flex-direction: column; }
+	#game-hud .hud-left   { text-align: left;   align-items: flex-start; }
+	#game-hud .hud-center { text-align: center; align-items: center; flex: 1; }
+	#game-hud .hud-right  { text-align: right;  align-items: flex-end;  }
+	#hud-best       { font-size: 14pt; opacity: 0.7; line-height: 1; }
+	#hud-score      { font-size: 32pt; line-height: 1; transform-origin: center bottom; }
+	#hud-multiplier { font-size: 32pt; line-height: 1; transform-origin: right center; }
+	#hud-streak     { font-size: 24pt; line-height: 1; transform-origin: right center; margin-top: 4px; }
 
 	#hint {
 		position: fixed;
-		top: 28px; left: 50%;
+		top: 120px; left: 50%;
 		transform: translateX(-50%);
 		padding: 12px 18px;
-		background: var(--bg-panel);
+		background: rgba(255,255,255,0.06);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		z-index: 110;
@@ -222,19 +299,49 @@
 
 	.overlay {
 		position: fixed;
-		bottom: 0; left: 0; right: 0;
+		top: 0; left: 0; right: 0;
 		padding: 8px 14px;
-		background: var(--bg-panel);              /* match hint card panel for readability */
+		background: rgba(255,255,255,0.06);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		border-bottom: 1px solid var(--border);
 		z-index: 100;
 		font-size: calc(11px * var(--ui-scale));
 		color: var(--fg-muted);
 		display: flex;
-		gap: 18px;
+		gap: 14px;
 		align-items: center;
 		flex-wrap: wrap;
 	}
+	.overlay .cover {
+		flex: 0 0 auto;
+		width: 32px; height: 32px;
+		object-fit: cover;
+		border: 1px solid var(--border);
+	}
+	.overlay .cover.hidden { display: none; }
 	.overlay .info { color: var(--fg); }
-	.overlay .vol { display: flex; align-items: center; gap: 6px; color: var(--fg-muted); }
+	.overlay .time {
+		color: var(--fg-muted);
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.5px;
+	}
+	.overlay .time.hidden { display: none; }
+	.overlay .vol {
+		display: flex; align-items: center; gap: 6px;
+		color: var(--fg-muted);
+	}
+	.overlay .vol-label {
+		cursor: pointer;
+		user-select: none;
+		padding: 2px 4px;
+		border-radius: var(--radius);
+	}
+	.overlay .vol-label:hover { color: var(--fg-bright); }
+	.overlay .vol-label.muted {
+		text-decoration: line-through;
+		color: var(--fg-dim);
+	}
 	.overlay .vol input[type=range] { width: 80px; }
 	.overlay .share {
 		background: var(--bg-input);
@@ -249,15 +356,21 @@
 	.overlay .share:hover { color: var(--fg-bright); border-color: var(--border-hot); }
 	.overlay .share.hidden { display: none; }
 
+	.overlay #render-value {
+		color: var(--fg-muted);
+		font-variant-numeric: tabular-nums;
+		min-width: calc(20px * var(--ui-scale));
+	}
+
 	#drop-overlay {
 		display: none;
 		position: fixed; inset: 0;
 		background: var(--bg-drop);
-		border: 4px dashed var(--border-hot);
+		border: 4px dashed rgba(255,255,255,0.55);
 		z-index: 9999;
 		pointer-events: none;
 		font-size: calc(22px * var(--ui-scale));
-		color: var(--fg-bright);
+		color: #fff;
 		text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
 		align-items: center;
 		justify-content: center;
@@ -273,7 +386,7 @@
 		z-index: 9998;
 		align-items: center;
 		justify-content: center;
-		color: var(--fg);
+		color: #fff;
 		font-family: 'IBM VGA 8x16', monospace;
 		font-size: calc(16px * var(--ui-scale));
 	}
@@ -296,23 +409,49 @@
 		</div>
 		<div id="search-results"></div>
 		<div id="track-list">loading tracks…</div>
+		<div class="sub">controls: A / D &middot; ← → &middot; touch &amp; drag</div>
 		<div class="sub">or drop your music &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
+	</div>
+
+	<div id="game-hud">
+		<div class="hud-col hud-left">
+			<div id="hud-best"></div>
+		</div>
+		<div class="hud-col hud-center">
+			<div id="hud-score">0</div>
+		</div>
+		<div class="hud-col hud-right">
+			<div id="hud-multiplier">x1</div>
+			<div id="hud-streak">0</div>
+		</div>
 	</div>
 
 	<div id="drop-overlay"><span>drop <strong>audio</strong> (.mp3/.wav/.ogg) — beats are analyzed on the fly</span></div>
 	<div id="loading-overlay"><span>loading…</span></div>
 
 	<div class="overlay" id="game-overlay">
-		<span class="info" id="info">preview</span>
+		<img class="cover hidden" id="cover-art" alt="">
+		<span class="info" id="info"></span>
+		<span class="time hidden" id="time-display"></span>
 		<button class="share hidden" id="share-btn" title="copy share link">share</button>
-		<label class="vol">music <input type="range" id="vol-slider" min="0" max="100"></label>
-		<label class="vol">sfx <input type="range" id="sfx-slider" min="0" max="100"></label>
+		<span class="vol">
+			<span class="vol-label" data-channel="music" title="click to mute">music</span>
+			<input type="range" id="vol-slider" min="0" max="100">
+		</span>
+		<span class="vol">
+			<span class="vol-label" data-channel="sfx" title="click to mute">sfx</span>
+			<input type="range" id="sfx-slider" min="0" max="100">
+		</span>
+		<span class="vol">
+			<span class="vol-label" style="cursor: default" title="pixel-perfect render scale">render</span>
+			<input type="range" id="render-slider" min="1" max="6" step="1">
+			<span id="render-value">3×</span>
+		</span>
 	</div>
 
 	<script src='js/dat.gui.min.js'></script>
 	<script src="js/three.min.js"></script>
 	<script src="js/CurveExtras.js"></script>
-	<script src="js/renderers/CSS3DRenderer.js"></script>
 	<script src="beat-detector.js"></script>
 
 	<script>
@@ -351,13 +490,84 @@
 		var hintEl      = document.getElementById('hint');
 		var dropOverlay = document.getElementById('drop-overlay');
 		var trackListEl = document.getElementById('track-list');
+		var coverEl     = document.getElementById('cover-art');
+		var timeEl      = document.getElementById('time-display');
+
+		function setCover(url){
+			if (!url) { clearCover(); return; }
+			coverEl.src = url;
+			coverEl.classList.remove('hidden');
+		}
+		function clearCover(){
+			coverEl.removeAttribute('src');
+			coverEl.classList.add('hidden');
+		}
+
+		function formatTime(s){
+			s = Math.max(0, Math.floor(s));
+			var m = Math.floor(s / 60);
+			var sec = s % 60;
+			return m + ':' + (sec < 10 ? '0' : '') + sec;
+		}
+		function updateTimeDisplay(){
+			if (window.PREVIEW) { timeEl.classList.add('hidden'); return; }
+			var dur = isFinite(MPlayer.audio.duration) ? MPlayer.audio.duration : 0;
+			timeEl.textContent = formatTime(MPlayer.audio.currentTime || 0) + ' / ' + formatTime(dur);
+			timeEl.classList.remove('hidden');
+		}
+		function wireTimeDisplay(){
+			MPlayer.audio.addEventListener('timeupdate',     updateTimeDisplay);
+			MPlayer.audio.addEventListener('loadedmetadata', updateTimeDisplay);
+			MPlayer.audio.addEventListener('play',           updateTimeDisplay);
+		}
+
+		// Render-scale — buffer at (viewport / scale), canvas CSS at full
+		// viewport, image-rendering: pixelated. Default 3× for the chunky
+		// pixel-perfect look + 9× pixel-fill saving. Cameras follow viewport,
+		// not buffer (so FOV stays correct).
+		var RENDER_SCALE_KEY = 'kulm_render_scale';
+		var renderScaleEl    = null;   // populated by wireRenderScale
+		var renderValueEl    = null;
+		function applyRenderScale(scale){
+			scale = Math.max(1, Math.min(6, scale | 0));
+			var w = Math.floor(window.innerWidth  / scale);
+			var h = Math.floor(window.innerHeight / scale);
+			window.renderer.setSize(w, h, false);
+			window.renderer.domElement.style.width  = '100vw';
+			window.renderer.domElement.style.height = '100vh';
+			window.renderer.domElement.style.imageRendering = scale > 1 ? 'pixelated' : 'auto';
+			if (window.camera)  { window.camera.aspect  = window.innerWidth / window.innerHeight; window.camera.updateProjectionMatrix(); }
+			if (window.camera2) { window.camera2.aspect = window.innerWidth / window.innerHeight; window.camera2.updateProjectionMatrix(); }
+			if (renderScaleEl) renderScaleEl.value = String(scale);
+			if (renderValueEl) renderValueEl.textContent = scale + '×';
+		}
+		function wireRenderScale(){
+			renderScaleEl = document.getElementById('render-slider');
+			renderValueEl = document.getElementById('render-value');
+			var saved = parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '3', 10);
+			applyRenderScale(saved);
+			renderScaleEl.addEventListener('input', function(e){
+				var v = parseInt(e.target.value, 10);
+				applyRenderScale(v);
+				localStorage.setItem(RENDER_SCALE_KEY, String(v));
+			});
+			renderScaleEl.addEventListener('keydown', function(e){ e.stopPropagation(); });
+			window.addEventListener('resize', function(){
+				applyRenderScale(parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '3', 10));
+			});
+		}
 
 		var presets        = [];        // manifest entries [{id, audio, beats}]
 		var activeTrackId  = null;      // currently playing preset id (null = preview or custom drop)
 		var currentAudioUrl = null;     // for revoking previous Blob URL on swap
 
 		function enterGameState(){ hintEl.classList.add('hidden'); }
-		function exitGameState(){ hintEl.classList.remove('hidden'); renderTrackList(); }
+		function exitGameState(){
+			hintEl.classList.remove('hidden');
+			timeEl.classList.add('hidden');
+			clearCover();
+			renderTrackList();
+		}
 		window.addEventListener('track-finished', function(){
 			clearShareTrack();
 			exitGameState();
@@ -424,6 +634,8 @@
 				wireVolume();
 				wireSearch();
 				wireShareButton();
+				wireTimeDisplay();
+				wireRenderScale();
 				// `scoring.CUSTOM_PREFIX` only exists after scoring.js loads —
 				// re-render now to pick up custom entries from previous sessions.
 				renderTrackList();
@@ -532,27 +744,81 @@
 		// Loading overlay — flipped on at the start of any "load a track"
 		// flow and off again once analyzeAndPlay's full chain (including the
 		// async swap → tube.js → loadBeats → MPlayer.play) settles.
+		var loadingTextEl = document.querySelector('#loading-overlay span');
 		function showLoading(){ document.body.classList.add('loading'); }
-		function hideLoading(){ document.body.classList.remove('loading'); }
+		function hideLoading(){
+			document.body.classList.remove('loading');
+			loadingTextEl.textContent = 'loading…';
+		}
+		function setLoadingText(text){ loadingTextEl.textContent = text; }
+
+		// Fetch with streaming progress. Falls back to plain fetch().blob()
+		// when Content-Length is missing or ReadableStream is unsupported,
+		// so the caller never has to branch.
+		function fetchWithProgress(url, onProgress){
+			return fetch(url).then(function(response){
+				if (!response.ok) throw new Error('HTTP ' + response.status);
+				var total = parseInt(response.headers.get('Content-Length') || '0', 10);
+				if (!total || !response.body || !response.body.getReader) {
+					return response.blob();
+				}
+				var reader   = response.body.getReader();
+				var chunks   = [];
+				var received = 0;
+				return new Promise(function(resolve, reject){
+					function pump(){
+						reader.read().then(function(r){
+							if (r.done) { resolve(new Blob(chunks)); return; }
+							chunks.push(r.value);
+							received += r.value.length;
+							if (onProgress) onProgress(received / total);
+							pump();
+						}).catch(reject);
+					}
+					pump();
+				});
+			});
+		}
 
 		function wireVolume(){
-			var vol = document.getElementById('vol-slider');
+			var musicSlider = document.getElementById('vol-slider');
+			var sfxSlider   = document.getElementById('sfx-slider');
+			var musicLabel  = document.querySelector('.vol-label[data-channel="music"]');
+			var sfxLabel    = document.querySelector('.vol-label[data-channel="sfx"]');
+
 			var savedVol = parseInt(localStorage.getItem('vol') || '50', 10);
-			vol.value = String(savedVol);
+			musicSlider.value = String(savedVol);
 			MPlayer.audio.volume = savedVol / 100;
-			vol.addEventListener('input', function(e){
+			musicLabel.classList.toggle('muted', savedVol === 0);
+
+			musicSlider.addEventListener('input', function(e){
 				var v = parseInt(e.target.value, 10);
 				MPlayer.audio.volume = v / 100;
 				localStorage.setItem('vol', String(v));
+				musicLabel.classList.toggle('muted', v === 0);
 			});
-			vol.addEventListener('keydown', function(e){ e.stopPropagation(); });
+			musicSlider.addEventListener('keydown', function(e){ e.stopPropagation(); });
 
-			var sfxSlider = document.getElementById('sfx-slider');
 			sfxSlider.value = String(Math.round(SFX.getVolume() * 100));
+			sfxLabel.classList.toggle('muted', sfxSlider.value === '0');
 			sfxSlider.addEventListener('input', function(e){
-				SFX.setVolume(parseInt(e.target.value, 10) / 100);
+				var v = parseInt(e.target.value, 10);
+				SFX.setVolume(v / 100);
+				sfxLabel.classList.toggle('muted', v === 0);
 			});
 			sfxSlider.addEventListener('keydown', function(e){ e.stopPropagation(); });
+
+			function toggleMute(slider, label){
+				if (slider.value === '0') {
+					slider.value = slider.dataset.prevVolume || '50';
+				} else {
+					slider.dataset.prevVolume = slider.value;
+					slider.value = '0';
+				}
+				slider.dispatchEvent(new Event('input'));
+			}
+			musicLabel.addEventListener('click', function(){ toggleMute(musicSlider, musicLabel); });
+			sfxLabel.addEventListener('click',   function(){ toggleMute(sfxSlider,   sfxLabel);   });
 		}
 
 		// === Track list ===
@@ -686,15 +952,16 @@
 		// result; we just skip the search step.
 		function loadFromMeta(label, meta){
 			showLoading();
+			setLoadingText('loading…');
 			activeTrackId = null;
 			// Meta saved before id-in-meta landed has source but no id —
 			// fall back to clearing the share state for those legacy entries.
 			if (meta.source && meta.id) setShareTrack(meta.source, meta.id);
 			else                        clearShareTrack();
+			setCover(meta.cover || null);
 			infoEl.textContent = 'fetching ' + label + '…';
-			fetch(meta.audio).then(function(r){
-				if (!r.ok) throw new Error('HTTP ' + r.status);
-				return r.blob();
+			fetchWithProgress(meta.audio, function(p){
+				setLoadingText('loading ' + Math.floor(p * 100) + '%');
 			}).then(function(blob){
 				return analyzeAndPlay(blob, label, true);
 			}).catch(function(err){
@@ -705,11 +972,12 @@
 
 		function loadPreset(t){
 			showLoading();
+			setLoadingText('loading…');
 			clearShareTrack();
+			clearCover();
 			infoEl.textContent = 'loading ' + t.id + '…';
-			fetch(t.audio).then(function(r){
-				if (!r.ok) throw new Error('HTTP ' + r.status);
-				return r.blob();
+			fetchWithProgress(t.audio, function(p){
+				setLoadingText('loading ' + Math.floor(p * 100) + '%');
 			}).then(function(blob){
 				activeTrackId = t.id;
 				return analyzeAndPlay(blob, t.id, false);
@@ -755,14 +1023,15 @@
 
 		function playSearchResult(result){
 			showLoading();
+			setLoadingText('loading…');
 			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
 			var rawId = result.id.indexOf(':') > -1 ? result.id.split(':')[1] : result.id;
 			activeTrackId = null;
 			setShareTrack(result.source, rawId);
+			setCover(result.cover);
 			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
-			fetch(result.audio).then(function(r){
-				if (!r.ok) throw new Error('HTTP ' + r.status);
-				return r.blob();
+			fetchWithProgress(result.audio, function(p){
+				setLoadingText('loading ' + Math.floor(p * 100) + '%');
 			}).then(function(blob){
 				saveTrackMeta(label, {
 					audio:     result.audio,
@@ -770,6 +1039,7 @@
 					duration:  result.duration,
 					source:    result.source,
 					id:        rawId,
+					cover:     result.cover || null,
 				});
 				return analyzeAndPlay(blob, label, true);
 			}).catch(function(err){
@@ -850,6 +1120,7 @@
 		// (audio File from DataTransfer).
 		function analyzeAndPlay(audioBlob, label, isCustom){
 			showLoading();
+			setLoadingText('decoding…');
 			infoEl.textContent = 'decoding ' + label + '…';
 			var AC = window.AudioContext || window.webkitAudioContext;
 			var ctx = new AC();
@@ -857,9 +1128,12 @@
 			return audioBlob.arrayBuffer().then(function(arrBuf){
 				return ctx.decodeAudioData(arrBuf);
 			}).then(function(audioBuffer){
+				setLoadingText('analyzing 0%');
 				infoEl.textContent = 'analyzing ' + label + '…';
 				return detectBeats(audioBuffer, function(p){
-					infoEl.textContent = 'analyzing ' + label + ' ' + Math.floor(p*100) + '%';
+					var pct = Math.floor(p * 100);
+					setLoadingText('analyzing ' + pct + '%');
+					infoEl.textContent = 'analyzing ' + label + ' ' + pct + '%';
 				});
 			}).then(function(result){
 				if (!result.beats.length) throw new Error('analyze produced 0 beats');
@@ -906,6 +1180,7 @@
 
 			activeTrackId = null;
 			clearShareTrack();
+			clearCover();
 			analyzeAndPlay(audio, audio.name, true);
 		});
 

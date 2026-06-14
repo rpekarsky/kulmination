@@ -12,6 +12,7 @@
 			audio:     HOST + '/v1/tracks/' + t.id + '/stream?app_name=' + APP,
 			track_url: t.permalink ? ('https://audius.co' + t.permalink) : ('https://audius.co/tracks/' + t.id),
 			duration:  t.duration,
+			cover:     t.artwork && (t.artwork['150x150'] || t.artwork['480x480']) || null,
 			source:    'audius',
 		};
 	}

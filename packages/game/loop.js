@@ -2,6 +2,7 @@
 
 var time = 0;
 var rotateDelta = 0;
+var gameHudEl = document.getElementById('game-hud');
 	// curLoopTime = 0.01837088491626749;
 	lptm = 10000;
 
@@ -91,6 +92,10 @@ function mainloop(){
 	
 	scoreHud.update();
 	multiplerHud.update();
-	hudWrapper.rotation.z = rotateDelta*20*TO_RADIANS;
-	hudWrapper.rotation.y = rotateDelta*5*TO_RADIANS;
+	streakHud.update();
+	// Single rotation for the whole HUD sheet — tachometer-overlay feel:
+	// camera banks left → HUD tilts right, all elements stay coherent.
+	if (gameHudEl) {
+		gameHudEl.style.transform = 'translateX(-50%) rotate(' + (-rotateDelta * 20) + 'deg)';
+	}
 }

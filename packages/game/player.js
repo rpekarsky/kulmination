@@ -25,7 +25,8 @@ var Player = (function(){
 
 	// var color = 0x9090f0;
 	var color = 0x101010;
-	var bodyMaterial = new THREE.MeshBasicMaterial( { color: color, wireframe:false, transparent: false, opacity: 0.7 } ); 
+	var bodyMaterial      = new THREE.MeshBasicMaterial( { color: color,    wireframe:false, transparent: false, opacity: 0.7 } );
+	var coinFlashMaterial = new THREE.MeshBasicMaterial( { color: 0x00ffff, wireframe:false, transparent: false, opacity: 1   } );
 	var parent = GameObject.prototype;
 	function Player(){
 		parent.constructor.call(this,{height:5,delta:0,debug:true});
@@ -52,6 +53,15 @@ var Player = (function(){
 		var fc = new FlyCoin;
 		Player.prototype.flycoins.push(fc);
 		this.pivotObject.add(fc.pivotPosition);
+	};
+
+	Player.prototype.flashCoin = function() {
+		var self = this;
+		this.mesh.material = coinFlashMaterial;
+		clearTimeout(this._flashTimer);
+		this._flashTimer = setTimeout(function(){
+			self.mesh.material = bodyMaterial;
+		}, 120);
 	};
 
 	Player.prototype.update = function() {

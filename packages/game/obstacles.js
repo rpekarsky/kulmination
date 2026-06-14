@@ -20,14 +20,16 @@ Obstacles.update = function () {
 		// player. testCollide above already flipped obj.collided if the
 		// player was in its delta zone earlier — read that flag now.
 		if (obj.kind === 'coin') {
-			if (obj.collided) scoring.pickup(100);
+			if (obj.collided) {
+				scoring.pickup(100);
+				if (typeof player !== 'undefined' && player.flashCoin) player.flashCoin();
+			}
 			// missed coin: silent, no penalty
 		} else {
 			if (obj.collided) {
 				scoring.hit();
 				if (typeof SFX !== 'undefined') SFX.play('damage');
 			} else {
-				scoring.avoided(50);
 				gameCam.shakeValue += 0.2;
 				if (typeof SFX !== 'undefined') SFX.play('whoosh');
 			}

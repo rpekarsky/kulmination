@@ -162,16 +162,9 @@ scene.add(tubeMesh);
 
 
 
-document.body.appendChild( hudRenderer.domElement );
-
 function render() {
-
 	requestAnimationFrame(render);
-	// composer.render(scene, mainCamera);
 	renderer.render(scene, mainCamera);
-	hudRenderer.render(hudScene,hudCamera);
-	// testObject.rotation.y += 2*TO_RADIANS
-
 	mainloop();
 }
 MPlayer.play();

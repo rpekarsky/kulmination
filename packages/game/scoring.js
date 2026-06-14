@@ -3,7 +3,6 @@
 // other legacy reference still works, but writes go through scoring.* methods.
 var scoring = (function(){
 	var STREAK_TO_NEXT  = 10;
-	var HIT_PENALTY     = 0.9;            // keep 90%, lose 10%
 	var BUNDLED_PREFIX  = 'kulm_best_';
 	var CUSTOM_PREFIX   = 'kulm_best_custom_';
 
@@ -25,13 +24,13 @@ var scoring = (function(){
 		window.SCORE = state.score;
 		if (typeof scoreHud !== 'undefined') scoreHud.setScore(state.score);
 		if (typeof multiplerHud !== 'undefined') multiplerHud.setMultiplier(state.multiplier);
+		if (typeof streakHud !== 'undefined') streakHud.set(state.streak);
 		if (typeof bestHud !== 'undefined') bestHud.setBest(state.currentBest);
 	}
 
 	function streakStep(){
 		state.streak++;
-		if (state.streak >= STREAK_TO_NEXT) {
-			state.streak = 0;
+		if (state.streak % STREAK_TO_NEXT === 0) {
 			state.multiplier++;
 			if (typeof multiplerHud !== 'undefined') multiplerHud.bump();
 		}
@@ -43,13 +42,7 @@ var scoring = (function(){
 			streakStep();
 			refresh();
 		},
-		avoided: function(base){
-			state.score += base * state.multiplier;
-			streakStep();
-			refresh();
-		},
 		hit: function(){
-			state.score = Math.floor(state.score * HIT_PENALTY);
 			state.multiplier = 1;
 			state.streak = 0;
 			refresh();
