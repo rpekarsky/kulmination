@@ -1,6 +1,8 @@
 var SearchUI = (function(){
 	var MIN_CHARS = 2;
 	var DEBOUNCE_MS = 350;
+	var ENGINE_STORAGE_KEY = 'kulm_search_engine';
+	var ALL = 'all';
 
 	function formatDuration(seconds){
 		if (!seconds) return '';
@@ -44,21 +46,60 @@ var SearchUI = (function(){
 			resultsEl.innerHTML = '<div class="search-status">no results</div>';
 			return;
 		}
+		var showHeaders = groups.length > 1;
 		groups.forEach(function(group){
 			if (!group.results.length) return;
-			var header = document.createElement('div');
-			header.className = 'search-header';
-			header.textContent = '↓ from ' + group.provider.label;
-			resultsEl.appendChild(header);
+			if (showHeaders) {
+				var header = document.createElement('div');
+				header.className = 'search-header';
+				header.textContent = '↓ from ' + group.provider.label;
+				resultsEl.appendChild(header);
+			}
 			group.results.forEach(function(result){
 				resultsEl.appendChild(buildResultRow(result, onPick));
 			});
 		});
 	}
 
+	function populateEngineSelect(selectEl){
+		var saved = localStorage.getItem(ENGINE_STORAGE_KEY) || ALL;
+		selectEl.innerHTML = '';
+
+		var allOpt = document.createElement('option');
+		allOpt.value = ALL;
+		allOpt.textContent = 'all';
+		selectEl.appendChild(allOpt);
+
+		Search.getProviders().forEach(function(p){
+			var opt = document.createElement('option');
+			opt.value = p.name;
+			opt.textContent = p.label;
+			selectEl.appendChild(opt);
+		});
+
+		var savedExists = Array.prototype.some.call(selectEl.options, function(o){ return o.value === saved; });
+		selectEl.value = savedExists ? saved : ALL;
+	}
+
+	function selectedProviderNames(selectEl){
+		if (!selectEl || selectEl.value === ALL) return null;
+		return [selectEl.value];
+	}
+
 	function attach(opts){
 		var debounceTimer = null;
 		var inFlightAbort = null;
+
+		if (opts.engineSelect) {
+			populateEngineSelect(opts.engineSelect);
+			opts.engineSelect.addEventListener('change', function(e){
+				localStorage.setItem(ENGINE_STORAGE_KEY, e.target.value);
+				if (opts.input.value.trim().length >= MIN_CHARS) {
+					opts.input.dispatchEvent(new Event('input'));
+				}
+			});
+			opts.engineSelect.addEventListener('keydown', function(e){ e.stopPropagation(); });
+		}
 
 		opts.input.addEventListener('input', function(e){
 			var query = e.target.value.trim();
@@ -74,7 +115,8 @@ var SearchUI = (function(){
 			debounceTimer = setTimeout(function(){
 				inFlightAbort = new AbortController();
 				opts.results.innerHTML = '<div class="search-status">searching…</div>';
-				Search.searchAll(query, inFlightAbort.signal).then(function(groups){
+				var providerNames = selectedProviderNames(opts.engineSelect);
+				Search.searchAll(query, inFlightAbort.signal, providerNames).then(function(groups){
 					renderGroups(groups, opts.results, opts.onPick);
 				}).catch(function(err){
 					if (err && err.name === 'AbortError') return;
