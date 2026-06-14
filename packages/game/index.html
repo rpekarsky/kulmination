@@ -5,19 +5,60 @@
 <title>Kulmination</title>
 <!-- analytics -->
 <style type="text/css">
+	/* Font: Oldschool PC Font Pack by VileR (CC BY-SA 4.0)
+	   https://int10h.org/oldschool-pc-fonts/  —  IBM VGA 8x16 Plus variant
+	   with extended (Cyrillic-capable) charset for Audius track titles. */
+	@font-face {
+		font-family: 'IBM VGA 8x16';
+		src: url('fonts/WebPlus_IBM_VGA_8x16.woff') format('woff');
+		font-display: swap;
+	}
+
+	/* CRT TUI palette — strict monochrome. Differentiation via brightness
+	   levels and structural elements (boxes, borders, italic), not hue.
+	   Score-hud keeps its own white styling. */
+	:root {
+		--bg-panel:    rgba(0,0,0,0.62);
+		--bg-input:    rgba(255,255,255,0.06);
+		--bg-drop:     rgba(255,255,255,0.12);
+		--bg-modal:    rgba(0,0,0,0.7);
+
+		--border:      rgba(255,255,255,0.20);
+		--border-hot:  rgba(255,255,255,0.55);
+		--border-dash: rgba(255,255,255,0.20);
+
+		--fg:          #ddd;
+		--fg-bright:   #fff;
+		--fg-muted:    #999;
+		--fg-dim:      #666;
+
+		--warn:        #fff;
+		--warn-bg:     rgba(255,255,255,0.06);
+		--warn-bd:     rgba(255,255,255,0.35);
+
+		--info:        #fff;
+		--info-bg:     rgba(255,255,255,0.08);
+		--info-bd:     rgba(255,255,255,0.40);
+
+		--error:       #fff;
+		--accent:      #fff;       /* custom-replayable rows (italic in CSS) */
+
+		--radius:      2px;
+		--ui-scale:    1.2;        /* scales system UI font sizes; score-hud excluded */
+	}
+
 	body {
 		padding: 0;
 		margin: 0;
 		background: #000;
-		color: #ccc;
-		font-family: monospace;
+		color: var(--fg);
+		font-family: 'IBM VGA 8x16', monospace;
 	}
 	canvas { display: block; }
 
 	.score-hud{
-		font-size: 20pt;
-		font-family: ubuntu;
-		font-weight: bold;
+		font-size: 32px;
+		font-family: 'IBM VGA 8x16', monospace;
 		color: white;
 		text-shadow: 5px 5px 10px rgba(0,0,0,0.3), 2px 2px 0px rgba(0,0,0,0.7), 1px 1px rgba(0,0,0,0.8);
 	}
@@ -27,29 +68,29 @@
 		top: 28px; left: 50%;
 		transform: translateX(-50%);
 		padding: 12px 18px;
-		background: rgba(0,0,0,0.6);
-		border: 1px solid rgba(255,255,255,0.15);
-		border-radius: 6px;
+		background: var(--bg-panel);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
 		z-index: 110;
-		font-size: 13px;
-		color: #ddd;
+		font-size: calc(13px * var(--ui-scale));
+		color: var(--fg);
 		text-align: center;
 		width: 500px;
 		max-width: 90vw;
 		box-sizing: border-box;
 	}
 	#hint.hidden { display: none; }
-	#hint h1 { margin: 0 0 8px; font-size: 18px; letter-spacing: 1px; color: #fff; font-weight: bold; }
-	#hint .sub { color: #888; font-size: 11px; margin-top: 6px; text-align: center; }
-	#hint a { color: #88c; }
+	#hint h1 { margin: 0 0 8px; font-size: calc(18px * var(--ui-scale)); letter-spacing: 2px; color: var(--fg-bright); }
+	#hint .sub { color: var(--fg-muted); font-size: calc(11px * var(--ui-scale)); margin-top: 6px; }
+	#hint a { color: var(--info); }
 	#hint #track-list {
 		display: flex; flex-direction: column;
 		text-align: left;
 		margin: 6px 0;
-		max-height: 154px;                /* ~7 rows × 22px line-height */
+		max-height: 154px;
 		overflow-y: auto;
-		border: 1px solid rgba(255,255,255,0.08);
-		border-radius: 4px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
 		padding: 4px 8px;
 		line-height: 1.4;
 	}
@@ -64,59 +105,59 @@
 		flex: 1 1 auto; min-width: 0;
 	}
 	#hint #track-list .item .score {
-		color: #777; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+		color: var(--fg-muted); font-variant-numeric: tabular-nums; flex: 0 0 auto;
 	}
 	#hint #track-list .item.bundled .name {
-		color: #aaa; cursor: pointer;
+		color: var(--fg); cursor: pointer;
 		border-bottom: 1px dotted transparent;
 	}
-	#hint #track-list .item.bundled .name:hover { color: #fff; border-bottom-color: #888; }
-	#hint #track-list .item.bundled.active .name { color: #fff; font-weight: bold; }
-	#hint #track-list .item.custom { opacity: 0.7; }
-	#hint #track-list .item.custom .name { color: #8c8; font-style: italic; cursor: default; }
+	#hint #track-list .item.bundled .name:hover { color: var(--fg-bright); border-bottom-color: var(--fg-muted); }
+	#hint #track-list .item.bundled.active .name { color: var(--fg-bright); }
+	#hint #track-list .item.custom { opacity: 0.85; }
+	#hint #track-list .item.custom .name { color: var(--fg-muted); font-style: italic; cursor: default; }
 	#hint #track-list .item .clear {
 		cursor: pointer; padding: 0 4px; user-select: none; flex: 0 0 auto;
+		color: var(--fg-muted);
 	}
-	#hint #track-list .item.bundled .clear        { color: #aaa; }
-	#hint #track-list .item.bundled.active .clear { color: #fff; }
-	#hint #track-list .item.custom .clear         { color: #8c8; }
-	#hint #track-list .item .clear:hover          { color: #f88; }
-	#hint #track-list .empty { color: #555; padding: 4px 0; font-style: italic; }
+	#hint #track-list .item.bundled.active .clear { color: var(--fg-bright); }
+	#hint #track-list .item .clear:hover          { color: var(--error); }
+	#hint #track-list .empty { color: var(--fg-muted); padding: 4px 0; font-style: italic; }
 	#hint #track-list.hidden { display: none; }
 	#hint #track-list .item.custom.replayable { opacity: 1; }
 	#hint #track-list .item.custom.replayable .name {
-		font-style: normal; cursor: pointer; color: #b9b;
+		font-style: normal; cursor: pointer; color: var(--accent);
 		border-bottom: 1px dotted transparent;
 	}
-	#hint #track-list .item.custom.replayable .name:hover { color: #fff; border-bottom-color: #b9b; }
+	#hint #track-list .item.custom.replayable .name:hover { color: var(--fg-bright); border-bottom-color: var(--accent); }
 	#hint #track-list .item .ext {
-		color: #88c; text-decoration: none; flex: 0 0 auto; padding: 0 2px;
+		color: var(--info); text-decoration: none; flex: 0 0 auto; padding: 0 2px;
 	}
-	#hint #track-list .item .ext:hover { color: #fff; }
+	#hint #track-list .item .ext:hover { color: var(--fg-bright); }
+
 	#audio-prompt {
 		margin: 0 0 8px;
 		padding: 6px 10px;
-		background: rgba(255,200,40,0.12);
-		border: 1px solid rgba(255,200,40,0.35);
-		border-radius: 4px;
-		color: #fc4;
-		font-size: 12px;
+		background: var(--warn-bg);
+		border: 1px solid var(--warn-bd);
+		border-radius: var(--radius);
+		color: var(--warn);
+		font-size: calc(12px * var(--ui-scale));
 	}
 	#audio-prompt.hidden { display: none; }
 
 	#share-prompt {
 		margin: 0 0 8px;
 		padding: 10px 14px;
-		background: rgba(80,180,255,0.12);
-		border: 1px solid rgba(80,180,255,0.45);
-		border-radius: 4px;
-		color: #aef;
-		font-size: 13px;
+		background: var(--info-bg);
+		border: 1px solid var(--info-bd);
+		border-radius: var(--radius);
+		color: var(--info);
+		font-size: calc(13px * var(--ui-scale));
 		text-align: center;
 		cursor: pointer;
 		user-select: none;
 	}
-	#share-prompt:hover { background: rgba(80,180,255,0.25); color: #fff; }
+	#share-prompt:hover { background: rgba(80,180,255,0.25); color: var(--fg-bright); }
 	#share-prompt.hidden { display: none; }
 
 	.search-row {
@@ -124,53 +165,42 @@
 		gap: 6px;
 		margin: 8px 0 4px;
 	}
-	#search-engine {
-		flex: 0 0 auto;
-		background: #1a1a1a;
-		border: 1px solid #333;
-		border-radius: 3px;
-		color: #ddd;
-		font-family: monospace;
-		font-size: 12px;
-		padding: 6px 6px;
-		cursor: pointer;
-	}
-	#search-engine:focus { outline: none; border-color: #88c; }
+	#search-engine,
 	#track-search {
-		flex: 1 1 auto;
-		min-width: 0;
-		box-sizing: border-box;
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		color: var(--fg);
+		font-family: 'IBM VGA 8x16', monospace;
+		font-size: calc(12px * var(--ui-scale));
 		padding: 6px 8px;
-		background: #1a1a1a;
-		border: 1px solid #333;
-		border-radius: 3px;
-		color: #ddd;
-		font-family: monospace;
-		font-size: 12px;
 	}
-	#track-search::placeholder { color: #666; }
-	#track-search:focus { outline: none; border-color: #88c; }
+	#search-engine { flex: 0 0 auto; cursor: pointer; }
+	#track-search  { flex: 1 1 auto; min-width: 0; box-sizing: border-box; }
+	#search-engine:focus,
+	#track-search:focus { outline: none; border-color: var(--border-hot); }
+	#track-search::placeholder { color: var(--fg-muted); }
 
 	#hint #search-results {
 		text-align: left;
 		max-height: 154px;
 		overflow-y: auto;
-		font-size: 12px;
+		font-size: calc(12px * var(--ui-scale));
 		line-height: 1.4;
 	}
 	#hint #search-results .search-header {
-		color: #666;
-		font-size: 10px;
+		color: var(--fg-muted);
+		font-size: calc(10px * var(--ui-scale));
 		padding: 6px 4px 2px;
 		text-transform: uppercase;
 		letter-spacing: 0.6px;
-		border-top: 1px dashed #333;
+		border-top: 1px dashed var(--border-dash);
 		margin-top: 4px;
 	}
 	#hint #search-results .search-status {
-		color: #666; font-size: 11px; padding: 6px 4px; font-style: italic;
+		color: var(--fg-muted); font-size: calc(11px * var(--ui-scale)); padding: 6px 4px; font-style: italic;
 	}
-	#hint #search-results .search-status.error { color: #f88; }
+	#hint #search-results .search-status.error { color: var(--error); }
 	#hint #search-results .item {
 		display: flex; gap: 8px;
 		padding: 1px 4px;
@@ -178,80 +208,80 @@
 	#hint #search-results .item .name {
 		flex: 1 1 auto; min-width: 0;
 		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-		color: #b9b; cursor: pointer;
+		color: var(--accent); cursor: pointer;
 		border-bottom: 1px dotted transparent;
 	}
-	#hint #search-results .item .name:hover { color: #fff; border-bottom-color: #b9b; }
+	#hint #search-results .item .name:hover { color: var(--fg-bright); border-bottom-color: var(--accent); }
 	#hint #search-results .item .duration {
-		color: #555; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+		color: var(--fg-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto;
 	}
 	#hint #search-results .item .ext {
-		color: #88c; text-decoration: none; flex: 0 0 auto; padding: 0 2px;
+		color: var(--info); text-decoration: none; flex: 0 0 auto; padding: 0 2px;
 	}
-	#hint #search-results .item .ext:hover { color: #fff; }
+	#hint #search-results .item .ext:hover { color: var(--fg-bright); }
 
 	.overlay {
 		position: fixed;
 		bottom: 0; left: 0; right: 0;
 		padding: 8px 14px;
-		background: rgba(0,0,0,0.35);
+		background: var(--bg-panel);              /* match hint card panel for readability */
 		z-index: 100;
-		font-size: 11px;
-		color: #888;
+		font-size: calc(11px * var(--ui-scale));
+		color: var(--fg-muted);
 		display: flex;
 		gap: 18px;
 		align-items: center;
 		flex-wrap: wrap;
 	}
-	.overlay .info { color: #ccc; }
-	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
+	.overlay .info { color: var(--fg); }
+	.overlay .vol { display: flex; align-items: center; gap: 6px; color: var(--fg-muted); }
 	.overlay .vol input[type=range] { width: 80px; }
 	.overlay .share {
-		background: #1a1a1a;
-		border: 1px solid #333;
-		border-radius: 3px;
-		color: #ccc;
-		font-family: monospace;
-		font-size: 11px;
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		color: var(--fg);
+		font-family: 'IBM VGA 8x16', monospace;
+		font-size: calc(11px * var(--ui-scale));
 		padding: 3px 8px;
 		cursor: pointer;
 	}
-	.overlay .share:hover { color: #fff; border-color: #88c; }
+	.overlay .share:hover { color: var(--fg-bright); border-color: var(--border-hot); }
 	.overlay .share.hidden { display: none; }
 
 	#drop-overlay {
 		display: none;
 		position: fixed; inset: 0;
-		background: rgba(0,100,200,0.25);
-		border: 6px dashed rgba(255,255,255,0.55);
+		background: var(--bg-drop);
+		border: 4px dashed var(--border-hot);
 		z-index: 9999;
 		pointer-events: none;
-		font-size: 22px;
-		color: #fff;
+		font-size: calc(22px * var(--ui-scale));
+		color: var(--fg-bright);
 		text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
 		align-items: center;
 		justify-content: center;
 		text-align: center;
 	}
 	#drop-overlay.active { display: flex; }
-	#drop-overlay span { padding: 12px 24px; background: rgba(0,0,0,0.55); border-radius: 6px; }
+	#drop-overlay span { padding: 12px 24px; background: rgba(0,0,0,0.55); border-radius: var(--radius); }
 
 	#loading-overlay {
 		display: none;
 		position: fixed; inset: 0;
-		background: rgba(0,0,0,0.7);
-		z-index: 9998;        /* above hint (110), below #drop-overlay (9999) */
+		background: var(--bg-modal);
+		z-index: 9998;
 		align-items: center;
 		justify-content: center;
-		color: #fff;
-		font-family: monospace;
-		font-size: 16px;
+		color: var(--fg);
+		font-family: 'IBM VGA 8x16', monospace;
+		font-size: calc(16px * var(--ui-scale));
 	}
 	body.loading #loading-overlay { display: flex; }
 	body.loading #loading-overlay span {
 		padding: 12px 24px;
 		background: rgba(0,0,0,0.55);
-		border-radius: 6px;
+		border-radius: var(--radius);
 	}
 </style>
 </head>
@@ -262,7 +292,7 @@
 		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
 		<div class="search-row">
 			<select id="search-engine" title="search engine"></select>
-			<input id="track-search" type="search" placeholder="search music…" autocomplete="off" spellcheck="false">
+			<input id="track-search" type="search" placeholder="search Audius…" autocomplete="off" spellcheck="false">
 		</div>
 		<div id="search-results"></div>
 		<div id="track-list">loading tracks…</div>

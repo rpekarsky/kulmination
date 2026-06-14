@@ -68,6 +68,12 @@ discovery API — open, no API key, no proxy needed. Tracks are
 artist-uploaded; Kulmination links back to each track's Audius page on
 every result.
 
+## Credits
+
+UI uses the [Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/)
+by [VileR](https://int10h.org/), specifically the IBM VGA 8x16 face —
+licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
 ## License
 
 [GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html). See [`LICENSE`](./LICENSE).
