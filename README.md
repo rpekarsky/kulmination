@@ -26,6 +26,7 @@ pass that wraps the original gameplay logic in a runnable web app.
 |---|---|
 | [`packages/game/`](./packages/game/) | The runner itself — Three.js tube traversal driven by audio beats |
 | [`packages/audio-analyzer/`](./packages/audio-analyzer/) | Web Audio peak-detection prototype. Half-finished WIP from late 2014 |
+| [`packages/worker/`](./packages/worker/) | Cloudflare Worker proxy for the Jamendo search API (keeps the client_id off the static frontend) |
 
 ## Running
 
@@ -63,9 +64,9 @@ Bundled audio under `packages/game/tracks/` is freely-licensed Pixabay
 content (`alexguz`, `jumpingbunny`, `nveravetyanmusic`, `sunsides`,
 `the_mountain`).
 
-The in-game Jamendo search hits a separate Cloudflare Worker that holds
-the Jamendo client_id in CF Secret storage (Jamendo ToS forbids exposing
-it in client code). Source: [rpekarsky/kulmination-worker](https://github.com/rpekarsky/kulmination-worker).
+The in-game Jamendo search hits a Cloudflare Worker that holds the
+Jamendo client_id in CF Secret storage (Jamendo ToS forbids exposing it
+in client code). Source lives in [`packages/worker/`](./packages/worker/).
 
 ## License
 

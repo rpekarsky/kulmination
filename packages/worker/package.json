@@ -1,0 +1,15 @@
+{
+  "name": "kulmination-worker",
+  "version": "0.0.1",
+  "description": "Cloudflare Worker proxy for Jamendo API. Holds the client_id in CF Secret so the static GitHub-Pages frontend doesn't have to ship it.",
+  "private": true,
+  "scripts": {
+    "dev":    "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "author": "Roman Pekarsky <contact@rpekarsky.com>",
+  "license": "AGPL-3.0-or-later",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+name = "kulmination-jamendo"
+main = "src/worker.js"
+compatibility_date = "2024-09-09"
+
+# JAMENDO_CLIENT_ID is provided via Cloudflare Secret — DO NOT add it here.
+#
+# Set once (interactively pastes the key into CF):
+#   wrangler secret put JAMENDO_CLIENT_ID
+#
+# For local dev, copy .dev.vars.example to .dev.vars and fill in. Both files
+# are gitignored.
+
+# Observability settings explicit so wrangler doesn't nag on every deploy.
+# Metrics off (free tier; not needed for a search proxy), logs kept on so
+# we can read `wrangler tail` if something breaks in prod.
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
