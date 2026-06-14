@@ -33,17 +33,25 @@ echo -n "  corepack: "; command -v corepack >/dev/null && corepack --version || 
 echo -n "  pnpm:     "; command -v pnpm     >/dev/null && pnpm --version     || echo "(missing)"
 echo
 
-# ─── Activate pnpm via corepack ─────────────────────────────────────
-# corepack is shipped with Node 16.13+. We pin pnpm@9.15.0 explicitly
-# (matches packages/game/package.json's packageManager field). This is
-# canonical Node-ecosystem version management — no global npm install,
-# no asdf magic.
+# ─── Install pnpm into a local prefix, prepend to PATH ─────────────
+# Why not corepack: CF Pages env ships an asdf-pnpm shim at
+# /opt/buildhome/.asdf/shims/pnpm that intercepts every pnpm call
+# and demands `asdf install pnpm <ver>` (which their asdf-pnpm
+# plugin can't satisfy without prior config). corepack writes its
+# pnpm into its own cache but the asdf shim sits BEFORE corepack's
+# install dir in PATH and wins.
+# Only reliable workaround: install pnpm via npm into a prefix WE
+# control, prepend that prefix's .bin to PATH so our pnpm beats
+# the asdf shim. Boring, no magic.
 echo "==============================================================="
-echo "[build] Activating pnpm@9.15.0 via corepack"
+echo "[build] Installing pnpm@9.15.0 (ahead of asdf shim)"
 echo "==============================================================="
-corepack enable
-corepack prepare pnpm@9.15.0 --activate
-echo -n "  pnpm: "; command -v pnpm && pnpm --version
+PNPM_PREFIX="$HOME/.kulm-pnpm"
+mkdir -p "$PNPM_PREFIX"
+npm install --prefix "$PNPM_PREFIX" --silent --no-audit --no-fund pnpm@9.15.0
+export PATH="$PNPM_PREFIX/node_modules/.bin:$PATH"
+echo -n "  pnpm path:    "; command -v pnpm
+echo -n "  pnpm version: "; pnpm --version
 echo
 
 # ─── Build ──────────────────────────────────────────────────────────
