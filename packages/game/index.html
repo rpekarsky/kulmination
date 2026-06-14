@@ -677,13 +677,18 @@
 				return;
 			}
 
-			// 3b. Thin the beat stream per type (coin / obstacle): the
-			//     analyzer often emits dense clusters, loadBeats then spawns
-			//     visibly-overlapping blocks. filterBeats keeps at most one
-			//     beat of each type per 100ms window.
+			// 3b. Cap wall density (≤1 wall per second; excess walls become
+			//     coins) then thin dense same-type clusters via filterBeats.
 			var beforeN = window.beats.length;
+			var beforeWalls = 0;
+			for (var bi = 0; bi < window.beats.length; bi++) if (window.beats[bi].b === 2) beforeWalls++;
+			window.beats = throttleWalls(window.beats);
+			var afterWalls = 0;
+			for (var bi = 0; bi < window.beats.length; bi++) if (window.beats[bi].b === 2) afterWalls++;
 			window.beats = filterBeats(window.beats);
-			console.log('beat-filter: ' + beforeN + ' → ' + window.beats.length + ' (' + (beforeN - window.beats.length) + ' dropped)');
+			console.log('beat-filter: ' + beforeN + ' → ' + window.beats.length +
+				' (' + (beforeN - window.beats.length) + ' dropped); walls ' +
+				beforeWalls + ' → ' + afterWalls + ' (' + (beforeWalls - afterWalls) + ' demoted to coins)');
 
 			// 4. Audio source — pause first so the old buffer stops cleanly,
 			//    then swap and let metadata reload. Skipped if loadPreset
