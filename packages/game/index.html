@@ -140,24 +140,24 @@
 		color: #666; font-size: 11px; padding: 6px 4px; font-style: italic;
 	}
 	#hint #search-results .search-status.error { color: #f88; }
-	#hint #search-results .item.jamendo {
+	#hint #search-results .item {
 		display: flex; gap: 8px;
 		padding: 1px 4px;
 	}
-	#hint #search-results .item.jamendo .name {
+	#hint #search-results .item .name {
 		flex: 1 1 auto; min-width: 0;
 		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 		color: #b9b; cursor: pointer;
 		border-bottom: 1px dotted transparent;
 	}
-	#hint #search-results .item.jamendo .name:hover { color: #fff; border-bottom-color: #b9b; }
-	#hint #search-results .item.jamendo .duration {
+	#hint #search-results .item .name:hover { color: #fff; border-bottom-color: #b9b; }
+	#hint #search-results .item .duration {
 		color: #555; font-variant-numeric: tabular-nums; flex: 0 0 auto;
 	}
-	#hint #search-results .item.jamendo .ext {
+	#hint #search-results .item .ext {
 		color: #88c; text-decoration: none; flex: 0 0 auto; padding: 0 2px;
 	}
-	#hint #search-results .item.jamendo .ext:hover { color: #fff; }
+	#hint #search-results .item .ext:hover { color: #fff; }
 
 	.overlay {
 		position: fixed;
@@ -258,6 +258,10 @@
 		var GAME_SCRIPTS = [
 			'rng.js',
 			'beat-filter.js',
+			'search/search.js',
+			'search/search-jamendo.js',
+			'search/search-audius.js',
+			'search/search-ui.js',
 			'MPlayer.js',
 			'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 			'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
@@ -338,6 +342,7 @@
 				return p.then(function(){ return injectSrc(src); });
 			}, Promise.resolve()).then(function(){
 				wireVolume();
+				wireSearch();
 				// `scoring.CUSTOM_PREFIX` only exists after scoring.js loads —
 				// re-render now to pick up custom entries from previous sessions.
 				renderTrackList();
@@ -636,129 +641,40 @@
 			// no manifest — just leave the list empty; DnD still works.
 		});
 
-		// === Jamendo search ===
-		// Hits our Cloudflare Worker (which holds the client_id in env per
-		// Jamendo ToS clause 2 — must not be exposed in client code). Worker
-		// returns up to 10 trimmed results: {id, name, artist, audio,
-		// duration, license_url, track_url}. Audio CDN at jamendo.com has CORS
-		// open, so the game fetches the mp3 directly when the user clicks a
-		// result — Worker only carries the tiny search JSON.
-		var JAMENDO_PROXY_URL = 'https://kulmination-jamendo.roman-pekarskiy.workers.dev';
-		var searchEl    = document.getElementById('track-search');
-		var resultsEl   = document.getElementById('search-results');
-		var searchTimer = null;
-		var searchAbort = null;
+		var searchEl  = document.getElementById('track-search');
+		var resultsEl = document.getElementById('search-results');
 
-		function fmtDuration(s){
-			var m  = Math.floor(s / 60);
-			var ss = s % 60 < 10 ? '0' + (s % 60) : String(s % 60);
-			return m + ':' + ss;
-		}
-
-		function runSearch(q){
-			if (searchAbort) searchAbort.abort();
-			searchAbort = new AbortController();
-			resultsEl.innerHTML = '<div class="search-status">searching…</div>';
-			fetch(JAMENDO_PROXY_URL + '/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
-				.then(function(r){
-					if (!r.ok) throw new Error('HTTP ' + r.status);
-					return r.json();
-				})
-				.then(function(data){
-					if (data.error) throw new Error(data.error);
-					renderSearchResults(data.results || []);
-				})
-				.catch(function(err){
-					if (err.name === 'AbortError') return;
-					resultsEl.innerHTML = '<div class="search-status error">search failed: ' + (err.message || err) + '</div>';
+		function playSearchResult(result){
+			showLoading();
+			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
+			activeTrackId = null;
+			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
+			fetch(result.audio).then(function(r){
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.blob();
+			}).then(function(blob){
+				saveTrackMeta(label, {
+					audio:     result.audio,
+					track_url: result.track_url,
+					duration:  result.duration,
+					source:    result.source,
 				});
-		}
-
-		function renderSearchResults(items){
-			resultsEl.innerHTML = '';
-			if (!items.length) {
-				resultsEl.innerHTML = '<div class="search-status">no results</div>';
-				return;
-			}
-			// ToS 4.1 attribution: header credits Jamendo as the provider.
-			var header = document.createElement('div');
-			header.className = 'search-header';
-			header.textContent = '↓ from jamendo';
-			resultsEl.appendChild(header);
-
-			items.forEach(function(t){
-				var row = document.createElement('div');
-				row.className = 'item jamendo';
-
-				var name = document.createElement('span');
-				name.className = 'name';
-				name.textContent = t.name + ' — ' + t.artist;
-				name.title = t.name + ' by ' + t.artist + ' (click to play)';
-				name.addEventListener('click', function(){ loadJamendoTrack(t); });
-
-				var dur = document.createElement('span');
-				dur.className = 'duration';
-				dur.textContent = fmtDuration(t.duration);
-
-				// ToS 4.1: clickable backlink to the track's page on jamendo.com
-				var ext = document.createElement('a');
-				ext.className = 'ext';
-				ext.href = t.track_url;
-				ext.target = '_blank';
-				ext.rel = 'noopener';
-				ext.textContent = '↗';
-				ext.title = 'open on jamendo.com';
-				ext.addEventListener('click', function(e){ e.stopPropagation(); });
-
-				row.appendChild(name);
-				row.appendChild(dur);
-				row.appendChild(ext);
-				resultsEl.appendChild(row);
+				return analyzeAndPlay(blob, label, true);
+			}).catch(function(err){
+				hideLoading();
+				infoEl.textContent = result.source + ' fetch failed: ' + (err.message || err);
 			});
 		}
 
-		function loadJamendoTrack(t){
-			showLoading();
-			var label = t.artist + ' — ' + t.name;
-			activeTrackId = null;
-			infoEl.textContent = 'fetching ' + label + ' from jamendo…';
-			fetch(t.audio)
-				.then(function(r){
-					if (!r.ok) throw new Error('HTTP ' + r.status);
-					return r.blob();
-				})
-				.then(function(blob){
-					// Persist enough metadata to re-fetch and replay later
-					// (from a row in the custom-history list). audio URL is
-					// what swap() actually consumes; the rest is for the row.
-					saveTrackMeta(label, {
-						audio:     t.audio,
-						track_url: t.track_url,
-						duration:  t.duration,
-						source:    'jamendo',
-					});
-					return analyzeAndPlay(blob, label, true);
-				})
-				.catch(function(err){
-					hideLoading();
-					infoEl.textContent = 'jamendo fetch failed: ' + (err.message || err);
-				});
+		function wireSearch(){
+			SearchUI.attach({
+				input:   searchEl,
+				results: resultsEl,
+				onPick:  playSearchResult,
+				onStart: renderTrackList,     // hide bundled+history while searching
+				onClear: renderTrackList,     // restore bundled+history
+			});
 		}
-
-		searchEl.addEventListener('input', function(e){
-			var q = e.target.value.trim();
-			if (searchTimer) clearTimeout(searchTimer);
-			if (searchAbort)  searchAbort.abort();
-			if (q.length < 2) {
-				resultsEl.innerHTML = '';
-				renderTrackList();     // back to bundled+history mode
-				return;
-			}
-			renderTrackList();         // hide bundled+history under search
-			searchTimer = setTimeout(function(){ runSearch(q); }, 350);
-		});
-		// stop key events from drifting into the game's window.onkeydown
-		searchEl.addEventListener('keydown', function(e){ e.stopPropagation(); });
 
 		// ESC anywhere → reload to the menu. Cheap "back to lobby" gesture.
 		document.addEventListener('keydown', function(e){
