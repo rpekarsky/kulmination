@@ -91,12 +91,14 @@ var SearchUI = (function(){
 		var inFlightAbort = null;
 
 		if (opts.engineSelect) {
-			// With a single provider the dropdown adds no choice — hide it.
-			// When more providers register, the dropdown re-appears automatically.
+			// Always populate so selectedProviderNames() sees a real value
+			// (an unset <select> defaults to '' which would match no provider).
+			populateEngineSelect(opts.engineSelect);
+			// Hide the dropdown when there's nothing to switch between —
+			// reappears automatically when more providers register later.
 			if (Search.getProviders().length <= 1) {
 				opts.engineSelect.style.display = 'none';
 			} else {
-				populateEngineSelect(opts.engineSelect);
 				opts.engineSelect.addEventListener('change', function(e){
 					localStorage.setItem(ENGINE_STORAGE_KEY, e.target.value);
 					if (opts.input.value.trim().length >= MIN_CHARS) {

@@ -80,17 +80,6 @@ var pointB = spline.getPointAt(0.65);
 // scene.add(new THREE.ArrowHelper(directionCross.clone().applyAxisAngle(direction,-1.2),pointB,50,0xff0000,50/2,6));
 
 var lastX = width/2;
-window.onmousemove = function(e){
-	lastX = e.x;
-	if(e.altKey){
-		camera.position.x -= (width/2 -e.x)/130;
-		camera.position.y -= (e.y - height/2)/130;
-	}
-	if(e.ctrlKey){
-		camera.position.z += (width/2 -e.x)/130;
-	}
-}
-
 var lastXto = width/2;
 
 // Movement keys: ArrowLeft / A → left, ArrowRight / D → right.
@@ -104,7 +93,9 @@ function __keyDir(kc){
 	if (kc === 39 || kc === 68) return 'right';
 	return null;
 }
+var __mouseHeld = false;
 function __recomputeLastXto(){
+	if (__mouseHeld) return;                     // pointer takes precedence
 	if (!__heldKeys.length) { lastXto = width/2; return; }
 	var dir = __keyDir(__heldKeys[__heldKeys.length - 1]);
 	lastXto = dir === 'left' ? 0 : width;
@@ -120,6 +111,63 @@ window.onkeyup = function(e){
 	__heldKeys = __heldKeys.filter(function(k){ return k !== e.keyCode; });
 	__recomputeLastXto();
 };
+
+// Pointer (mouse / touch) — while held, map clientX to lastXto with 20%
+// dead zones on each side: leftmost 20% snaps full-left, rightmost 20%
+// snaps full-right, middle 60% maps linearly across.
+function __pointerXto(clientX){
+	var DEAD = 0.2;
+	var raw = clientX / window.innerWidth;
+	if (raw <= DEAD)     return 0;
+	if (raw >= 1 - DEAD) return width;
+	return ((raw - DEAD) / (1 - 2 * DEAD)) * width;
+}
+function __pointerInOverlay(target){
+	if (!target || !target.closest) return false;
+	return !!target.closest('#hint, .overlay, #drop-overlay, #loading-overlay');
+}
+// Pointer control is disabled in PREVIEW / rebuild — the tube idles as a
+// screensaver and shouldn't react to incidental clicks behind the hint.
+function __gameIsPlaying(){
+	return window.PREVIEW === false && window.__rebuilding !== true;
+}
+// Bind move-listeners only while the pointer is held. No idle traffic
+// from mousemove when the user isn't actively steering.
+function __onMouseMove(e){ lastXto = __pointerXto(e.clientX); }
+function __onTouchMove(e){
+	if (!e.touches[0]) return;
+	lastXto = __pointerXto(e.touches[0].clientX);
+}
+document.addEventListener('mousedown', function(e){
+	if (e.button !== 0)              return;
+	if (__pointerInOverlay(e.target)) return;
+	if (!__gameIsPlaying())          return;
+	__mouseHeld = true;
+	lastXto = __pointerXto(e.clientX);
+	document.addEventListener('mousemove', __onMouseMove);
+});
+document.addEventListener('mouseup', function(){
+	if (!__mouseHeld) return;
+	__mouseHeld = false;
+	document.removeEventListener('mousemove', __onMouseMove);
+	__recomputeLastXto();
+});
+document.addEventListener('touchstart', function(e){
+	if (__pointerInOverlay(e.target)) return;
+	if (!e.touches[0])                return;
+	if (!__gameIsPlaying())           return;
+	__mouseHeld = true;
+	lastXto = __pointerXto(e.touches[0].clientX);
+	document.addEventListener('touchmove', __onTouchMove, { passive: true });
+}, { passive: true });
+function __endTouch(){
+	if (!__mouseHeld) return;
+	__mouseHeld = false;
+	document.removeEventListener('touchmove', __onTouchMove);
+	__recomputeLastXto();
+}
+document.addEventListener('touchend',    __endTouch);
+document.addEventListener('touchcancel', __endTouch);
 
 var loopTime = 162000;
 // var loopTime = 1000 * 30;
@@ -208,25 +256,4 @@ var rotateDelta;
 
 
 
-function onDocumentTouchStart(event) {
-	if (event.touches.length == 1) {
-		event.preventDefault();
-		lastX = event.touches[ 0 ].pageX;
-		// targetRotationOnMouseDown = targetRotation;
-	}
-}
-
-function onDocumentTouchMove(event) {
-
-	if (event.touches.length == 1) {
-
-		event.preventDefault();
-
-		lastX = event.touches[ 0 ].pageX;
-	}
-
-}
-
-renderer.domElement.addEventListener( 'touchstart', onDocumentTouchStart, false );
-renderer.domElement.addEventListener( 'touchmove', onDocumentTouchMove, false );
 
