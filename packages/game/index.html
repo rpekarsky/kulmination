@@ -307,7 +307,6 @@
 			'rng.js',
 			'beat-filter.js',
 			'search/search.js',
-			'search/search-jamendo.js',
 			'search/search-audius.js',
 			'search/search-ui.js',
 			'MPlayer.js',
@@ -529,7 +528,7 @@
 		// === Track list ===
 		// Three flavours of rows:
 		//   - bundled (from tracks/manifest.json) — clickable, plays the preset
-		//   - custom + replayable (Jamendo result we played at least once;
+		//   - custom + replayable (search result we played at least once;
 		//     metadata kept in kulm_track_meta_custom_<label>) — clickable,
 		//     re-fetches the audio from the stored URL
 		//   - custom + dead (DnD'd file, no replay possible) — greyed out,
@@ -588,7 +587,7 @@
 				row.appendChild(n);
 				row.appendChild(s);
 				// Optional ↗ — clickable backlink to the track's page on the
-				// source service (Jamendo). Same visual as in the search list.
+				// source service (Audius/etc). Same visual as in the search list.
 				if (extUrl) {
 					var ext = document.createElement('a');
 					ext.className = 'ext';
@@ -641,7 +640,7 @@
 					false,
 					!!click,                       // replayable iff we have meta
 					TRACK_META_PREFIX + c.id,      // × also removes meta
-					meta && meta.track_url || null // ↗ link if jamendo (or any source)
+					meta && meta.track_url || null // ↗ link to the source page
 				));
 			});
 			if (!presets.length && !listCustomEntries().length) {
@@ -652,9 +651,9 @@
 			}
 		}
 
-		// Replay a custom track from its stored metadata (typically a Jamendo
-		// audio URL we kept after the first play). Same swap path as a fresh
-		// Jamendo result; we just skip the search step.
+		// Replay a custom track from its stored metadata (an audio URL we
+		// kept after the first play). Same swap path as a fresh search
+		// result; we just skip the search step.
 		function loadFromMeta(label, meta){
 			showLoading();
 			activeTrackId = null;

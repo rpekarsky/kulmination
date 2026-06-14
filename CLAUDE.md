@@ -4,8 +4,6 @@
 
 2014 Three.js music-rhythm tube runner, originally for the Samsung Tizen Web
 App Challenge. Revived in 2026 as a portfolio demo, deployed to GitHub Pages.
-Three packages live in this repo's `packages/`; one related service
-(`rpekarsky/kulmination-worker`) lives in a sibling repo.
 
 ## Monorepo layout
 
@@ -18,10 +16,6 @@ packages/
 No workspaces, no bundler. Each package = vanilla HTML + a pile of
 `<script src>` tags. Load order matters (see GAME_SCRIPTS in
 `packages/game/index.html`).
-
-The Cloudflare Worker that proxies Jamendo search lives outside this repo
-at `~/projects/rpekarsky/kulmination-worker/`. Its public URL is hardcoded
-into `packages/game/index.html` as `JAMENDO_PROXY_URL`.
 
 ## Don't refactor the 2014 core
 
@@ -71,12 +65,14 @@ AGPL-3.0. Bundled libs (Three.js MIT, dat.gui Apache-2.0) keep their own.
 Pluggable search: `packages/game/search/search.js` is a facade with a
 provider registry. Each provider lives in its own `search-<name>.js`
 sibling and registers itself on script load. UI lives in
-`packages/game/search/search-ui.js`. The Jamendo provider is the first
-adapter; Audius is being added next.
+`packages/game/search/search-ui.js`. Currently one provider — Audius
+(public discovery API, no key, no proxy). Architecture supports adding
+more; engine-select dropdown auto-hides while there's only one.
 
 Adapter contract — minimum useful fields:
 ```
 { id, name, audio, track_url, source, artist?, duration? }
 ```
-`audio` is required for playback; `track_url` is required for ToS
-attribution. The UI gracefully degrades on missing optionals.
+plus `lookup(id, signal)` for share-link by-id retrieval.
+`audio` is required for playback; `track_url` is required for
+attribution backlinks. The UI gracefully degrades on missing optionals.

@@ -91,14 +91,20 @@ var SearchUI = (function(){
 		var inFlightAbort = null;
 
 		if (opts.engineSelect) {
-			populateEngineSelect(opts.engineSelect);
-			opts.engineSelect.addEventListener('change', function(e){
-				localStorage.setItem(ENGINE_STORAGE_KEY, e.target.value);
-				if (opts.input.value.trim().length >= MIN_CHARS) {
-					opts.input.dispatchEvent(new Event('input'));
-				}
-			});
-			opts.engineSelect.addEventListener('keydown', function(e){ e.stopPropagation(); });
+			// With a single provider the dropdown adds no choice — hide it.
+			// When more providers register, the dropdown re-appears automatically.
+			if (Search.getProviders().length <= 1) {
+				opts.engineSelect.style.display = 'none';
+			} else {
+				populateEngineSelect(opts.engineSelect);
+				opts.engineSelect.addEventListener('change', function(e){
+					localStorage.setItem(ENGINE_STORAGE_KEY, e.target.value);
+					if (opts.input.value.trim().length >= MIN_CHARS) {
+						opts.input.dispatchEvent(new Event('input'));
+					}
+				});
+				opts.engineSelect.addEventListener('keydown', function(e){ e.stopPropagation(); });
+			}
 		}
 
 		opts.input.addEventListener('input', function(e){
