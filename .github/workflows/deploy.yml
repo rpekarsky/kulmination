@@ -20,9 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm is pinned to the version in packages/game/package.json's
-      # packageManager field; corepack picks it up automatically.
+      # pnpm version pinned via packageManager field in
+      # packages/game/package.json; action reads from there explicitly
+      # because the repo has no root package.json (default lookup).
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: packages/game/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -46,13 +49,13 @@ jobs:
           # tracks/, js/, plus dist/ with the bundle
           cp -r packages/game/. _site/
           # don't ship build/dev artifacts
-          rm -rf _site/node_modules _site/package*.json \
+          rm -rf _site/node_modules _site/package*.json _site/pnpm-lock.yaml \
                  _site/build-manifest.js _site/build.js _site/vite.config.js \
                  _site/.wrangler
           # analyzer at /analyzer/
           mkdir -p _site/analyzer
           cp -r packages/audio-analyzer/. _site/analyzer/
-          rm -rf _site/analyzer/node_modules _site/analyzer/package*.json
+          rm -rf _site/analyzer/node_modules _site/analyzer/package*.json _site/analyzer/pnpm-lock.yaml
 
       # Replaces the literal "<!-- analytics -->" placeholder in both
       # index.html files with the snippet from ANALYTICS_SCRIPT (a repo-level
