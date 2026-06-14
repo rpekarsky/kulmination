@@ -9,7 +9,7 @@ var DangerMaterial2 = new THREE.MeshBasicMaterial( { color: 0xb0d0df, wireframe:
 
 Obstacles.SCALE = 3;
 Obstacles.curCollideTestNum = 0;
-Obstacles.screen = 45;       // +50% from the original 30: longer look-ahead
+Obstacles.screen = 30;
 Obstacles.trackFinished = false;
 Obstacles.update = function () {
 	while(this.objects[Obstacles.curCollideTestNum] && this.objects[Obstacles.curCollideTestNum].testPassed()){
