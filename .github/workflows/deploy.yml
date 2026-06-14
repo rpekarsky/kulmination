@@ -20,25 +20,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm is pinned to the version in packages/game/package.json's
+      # packageManager field; corepack picks it up automatically.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: packages/game/pnpm-lock.yaml
 
-      # Regenerate tracks/manifest.json from whatever audio sits in
-      # packages/game/tracks/ at deploy time. No-ops on an empty tracks dir
-      # (which is the current state — preview + Jamendo search + DnD only).
-      - name: Build game manifest
+      # Install + build the game (regenerates tracks/manifest.json and
+      # produces dist/game.bundle.min.js — one minified file containing
+      # vendor libs + all game scripts).
+      - name: Build game
         run: |
           cd packages/game
-          node build-manifest.js
+          pnpm install --frozen-lockfile
+          pnpm run build
 
       - name: Assemble _site/
         run: |
           mkdir -p _site
-          # game at the root of pages — index.html, all *.js, sounds/, tracks/, js/
+          # game at the root of pages — index.html, all *.js, sounds/,
+          # tracks/, js/, plus dist/ with the bundle
           cp -r packages/game/. _site/
           # don't ship build/dev artifacts
-          rm -rf _site/node_modules _site/package*.json _site/build-manifest.js _site/.wrangler
+          rm -rf _site/node_modules _site/package*.json \
+                 _site/build-manifest.js _site/build.js _site/vite.config.js \
+                 _site/.wrangler
           # analyzer at /analyzer/
           mkdir -p _site/analyzer
           cp -r packages/audio-analyzer/. _site/analyzer/

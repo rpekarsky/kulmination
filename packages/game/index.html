@@ -449,10 +449,10 @@
 		</span>
 	</div>
 
-	<script src='js/dat.gui.min.js'></script>
-	<script src="js/three.min.js"></script>
-	<script src="js/CurveExtras.js"></script>
-	<script src="beat-detector.js"></script>
+	<!-- Boot-time script order — single source of truth for both the
+	     fallback waterfall below and packages/game/build.js for the
+	     production bundle. Defines window.GAME_SCRIPTS. -->
+	<script src="game-scripts.js"></script>
 
 	<script>
 	// Bootstrap.
@@ -461,6 +461,12 @@
 	//   - boots in PREVIEW with empty beats + 60s dummy duration + no audio.
 	//   - mainloop runs camera + player only, no obstacles, no audio.
 	//   - user sees the tube/plane idling as a screensaver.
+	//
+	// Script loading:
+	//   - Try dist/game.bundle.min.js (single minified bundle of vendor +
+	//     all game files, built by `npm run build`).
+	//   - On 404 (no bundle), fall back to loading each file in
+	//     GAME_SCRIPTS one-by-one in order — the dev path.
 	//
 	// Drop (preview OR mid-play):
 	//   - audio gets a Blob URL (lives in memory, no 5MB cap)
@@ -472,17 +478,6 @@
 	//   - new audio src is set on MPlayer.audio, PREVIEW flag cleared, play.
 	//   - no sessionStorage, no location.reload.
 	(function(){
-		var GAME_SCRIPTS = [
-			'rng.js',
-			'beat-filter.js',
-			'search/search.js',
-			'search/search-audius.js',
-			'search/search-ui.js',
-			'MPlayer.js',
-			'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
-			'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
-			'hud.js', 'scoring.js', 'SFX.js', 'main.js', 'loop.js', 'initialize.js'
-		];
 
 		var PREVIEW_BEATS_TEXT = 'var beats = []; var duration = 60000; var musicSrc = "";';
 
@@ -621,16 +616,22 @@
 			});
 		}
 
-		// First-time boot — load every game script in order with the preview
-		// "track" already declared. After this MPlayer/scene/render/etc. all
-		// exist and the render loop is running.
+		// First-time boot — load the prod bundle if present, else fall back
+		// to the GAME_SCRIPTS waterfall (the dev path under Vite). After
+		// this MPlayer/scene/render/etc. all exist and the render loop runs.
 		function bootPreview(){
 			window.PREVIEW = true;
 			injectInline(PREVIEW_BEATS_TEXT);
 			injectInline('window.musicSrc = "";');
-			return GAME_SCRIPTS.reduce(function(p, src){
-				return p.then(function(){ return injectSrc(src); });
-			}, Promise.resolve()).then(function(){
+
+			var loaded = injectSrc('dist/game.bundle.min.js').catch(function(){
+				// Bundle missing (dev mode) → load each file individually.
+				return GAME_SCRIPTS.reduce(function(p, src){
+					return p.then(function(){ return injectSrc(src); });
+				}, Promise.resolve());
+			});
+
+			return loaded.then(function(){
 				wireVolume();
 				wireSearch();
 				wireShareButton();
