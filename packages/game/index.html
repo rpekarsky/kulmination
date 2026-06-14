@@ -104,6 +104,21 @@
 	}
 	#audio-prompt.hidden { display: none; }
 
+	#share-prompt {
+		margin: 0 0 8px;
+		padding: 10px 14px;
+		background: rgba(80,180,255,0.12);
+		border: 1px solid rgba(80,180,255,0.45);
+		border-radius: 4px;
+		color: #aef;
+		font-size: 13px;
+		text-align: center;
+		cursor: pointer;
+		user-select: none;
+	}
+	#share-prompt:hover { background: rgba(80,180,255,0.25); color: #fff; }
+	#share-prompt.hidden { display: none; }
+
 	.search-row {
 		display: flex;
 		gap: 6px;
@@ -191,6 +206,18 @@
 	.overlay .info { color: #ccc; }
 	.overlay .vol { display: flex; align-items: center; gap: 6px; color: #aaa; }
 	.overlay .vol input[type=range] { width: 80px; }
+	.overlay .share {
+		background: #1a1a1a;
+		border: 1px solid #333;
+		border-radius: 3px;
+		color: #ccc;
+		font-family: monospace;
+		font-size: 11px;
+		padding: 3px 8px;
+		cursor: pointer;
+	}
+	.overlay .share:hover { color: #fff; border-color: #88c; }
+	.overlay .share.hidden { display: none; }
 
 	#drop-overlay {
 		display: none;
@@ -231,6 +258,7 @@
 <body>
 	<div id="hint">
 		<h1>Kulmination</h1>
+		<div id="share-prompt" class="hidden"></div>
 		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
 		<div class="search-row">
 			<select id="search-engine" title="search engine"></select>
@@ -246,6 +274,7 @@
 
 	<div class="overlay" id="game-overlay">
 		<span class="info" id="info">preview</span>
+		<button class="share hidden" id="share-btn" title="copy share link">share</button>
 		<label class="vol">music <input type="range" id="vol-slider" min="0" max="100"></label>
 		<label class="vol">sfx <input type="range" id="sfx-slider" min="0" max="100"></label>
 	</div>
@@ -300,7 +329,10 @@
 
 		function enterGameState(){ hintEl.classList.add('hidden'); }
 		function exitGameState(){ hintEl.classList.remove('hidden'); renderTrackList(); }
-		window.addEventListener('track-finished', exitGameState);
+		window.addEventListener('track-finished', function(){
+			clearShareTrack();
+			exitGameState();
+		});
 
 		// Audio priming. Browsers (Firefox especially) block .play() that
 		// originates from an async chain because the click's user-activation
@@ -362,9 +394,11 @@
 			}, Promise.resolve()).then(function(){
 				wireVolume();
 				wireSearch();
+				wireShareButton();
 				// `scoring.CUSTOM_PREFIX` only exists after scoring.js loads —
 				// re-render now to pick up custom entries from previous sessions.
 				renderTrackList();
+				handleShareLink();
 			});
 		}
 
@@ -624,6 +658,7 @@
 		function loadFromMeta(label, meta){
 			showLoading();
 			activeTrackId = null;
+			clearShareTrack();
 			infoEl.textContent = 'fetching ' + label + '…';
 			fetch(meta.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -638,6 +673,7 @@
 
 		function loadPreset(t){
 			showLoading();
+			clearShareTrack();
 			infoEl.textContent = 'loading ' + t.id + '…';
 			fetch(t.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -663,11 +699,34 @@
 		var searchEl   = document.getElementById('track-search');
 		var resultsEl  = document.getElementById('search-results');
 		var engineEl   = document.getElementById('search-engine');
+		var shareBtn   = document.getElementById('share-btn');
+
+		// {source, id} for the currently playing track when it came from a
+		// search result (shareable). Null for bundled presets and DnD audio
+		// (no public URL on the other side to reconstruct from).
+		var currentShareTrack = null;
+
+		function setShareTrack(result){
+			var rawId = result.id.indexOf(':') > -1 ? result.id.split(':')[1] : result.id;
+			currentShareTrack = { source: result.source, id: rawId };
+			shareBtn.classList.remove('hidden');
+			var url = new URL(location.href);
+			url.search = '';
+			url.searchParams.set('source', result.source);
+			url.searchParams.set('id',     rawId);
+			history.replaceState(null, '', url.toString());
+		}
+		function clearShareTrack(){
+			currentShareTrack = null;
+			shareBtn.classList.add('hidden');
+			if (location.search) history.replaceState(null, '', location.pathname);
+		}
 
 		function playSearchResult(result){
 			showLoading();
 			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
 			activeTrackId = null;
+			setShareTrack(result);
 			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
 			fetch(result.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -683,6 +742,52 @@
 			}).catch(function(err){
 				hideLoading();
 				infoEl.textContent = result.source + ' fetch failed: ' + (err.message || err);
+			});
+		}
+
+		function wireShareButton(){
+			shareBtn.addEventListener('click', function(){
+				if (!currentShareTrack) return;
+				var url = new URL(location.origin + location.pathname);
+				url.searchParams.set('source', currentShareTrack.source);
+				url.searchParams.set('id',     currentShareTrack.id);
+				navigator.clipboard.writeText(url.toString()).then(function(){
+					var original = shareBtn.textContent;
+					shareBtn.textContent = 'copied!';
+					setTimeout(function(){ shareBtn.textContent = original; }, 1500);
+				}).catch(function(err){
+					infoEl.textContent = 'clipboard failed: ' + (err.message || err);
+				});
+			});
+		}
+
+		// Read ?source=...&id=... and prepare the track for playback. Looks
+		// up metadata immediately (metadata fetch needs no user gesture) but
+		// gates the audio download + AudioContext work behind an explicit
+		// click on the share-prompt — browsers require user interaction
+		// before AudioContext is allowed to start, and an unprompted
+		// auto-fetch + analyze feels broken on a fresh tab anyway.
+		function handleShareLink(){
+			var params = new URLSearchParams(location.search);
+			var source = params.get('source');
+			var id     = params.get('id');
+			if (!source || !id) return;
+
+			var prompt = document.getElementById('share-prompt');
+			prompt.textContent = 'loading shared track info…';
+			prompt.classList.remove('hidden');
+
+			Search.lookup(source, id).then(function(result){
+				var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
+				prompt.textContent = '▶ click to play «' + label + '» from ' + result.source;
+				prompt.onclick = function(){
+					prompt.onclick = null;
+					prompt.classList.add('hidden');
+					playSearchResult(result);
+				};
+			}).catch(function(err){
+				prompt.classList.add('hidden');
+				infoEl.textContent = 'share link failed: ' + (err.message || err);
 			});
 		}
 
@@ -767,6 +872,7 @@
 			}
 
 			activeTrackId = null;
+			clearShareTrack();
 			analyzeAndPlay(audio, audio.name, true);
 		});
 

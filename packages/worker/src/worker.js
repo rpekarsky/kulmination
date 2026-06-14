@@ -12,6 +12,8 @@
 // Endpoints:
 //   GET /search?q=...   →  {results: [{id, name, artist, audio, duration,
 //                                       license_url, track_url}]}
+//   GET /track?id=...   →  {track:    {id, name, artist, audio, duration,
+//                                       license_url, track_url}}
 //   OPTIONS *           →  CORS preflight
 //
 // Deploy:
@@ -32,6 +34,10 @@ export default {
 
 		if (url.pathname === '/search' && request.method === 'GET') {
 			return handleSearch(url.searchParams.get('q') || '', env);
+		}
+
+		if (url.pathname === '/track' && request.method === 'GET') {
+			return handleLookup(url.searchParams.get('id') || '', env);
 		}
 
 		if (url.pathname === '/health') {
@@ -85,17 +91,61 @@ async function handleSearch(q, env) {
 
 	const results = (data.results || [])
 		.filter(t => t.audiodownload)
-		.map(t => ({
-			id:          t.id,
-			name:        t.name,
-			artist:      t.artist_name,
-			audio:       t.audiodownload,
-			duration:    t.duration,
-			license_url: t.license_ccurl || null,
-			track_url:   'https://www.jamendo.com/track/' + t.id,
-		}));
+		.map(toClientTrack);
 
 	return jsonResponse({ results });
+}
+
+async function handleLookup(id, env) {
+	if (!id || !/^\d+$/.test(id)) return jsonResponse({ error: 'invalid id' }, 400);
+
+	if (!env.JAMENDO_CLIENT_ID) {
+		return jsonResponse({ error: 'server missing JAMENDO_CLIENT_ID' }, 500);
+	}
+
+	const api = new URL('https://api.jamendo.com/v3.0/tracks/');
+	api.searchParams.set('client_id', env.JAMENDO_CLIENT_ID);
+	api.searchParams.set('format',      'json');
+	api.searchParams.set('id',          id);
+	api.searchParams.set('audioformat', 'mp31');
+	api.searchParams.set('include',     'musicinfo licenses');
+
+	let upstream;
+	try {
+		upstream = await fetch(api.toString(), { cf: { cacheTtl: 300 } });
+	} catch (err) {
+		return jsonResponse({ error: 'upstream fetch failed: ' + err.message }, 502);
+	}
+
+	if (!upstream.ok) {
+		return jsonResponse({ error: 'jamendo returned ' + upstream.status }, upstream.status);
+	}
+
+	const data = await upstream.json();
+
+	if (data.headers && data.headers.status === 'failed') {
+		return jsonResponse({
+			error: 'jamendo: ' + (data.headers.error_message || 'unknown error'),
+			code: data.headers.code,
+		}, 502);
+	}
+
+	const track = (data.results || [])[0];
+	if (!track || !track.audiodownload) return jsonResponse({ error: 'track not found' }, 404);
+
+	return jsonResponse({ track: toClientTrack(track) });
+}
+
+function toClientTrack(t) {
+	return {
+		id:          t.id,
+		name:        t.name,
+		artist:      t.artist_name,
+		audio:       t.audiodownload,
+		duration:    t.duration,
+		license_url: t.license_ccurl || null,
+		track_url:   'https://www.jamendo.com/track/' + t.id,
+	};
 }
 
 function corsHeaders() {

@@ -24,9 +24,17 @@ var Search = (function(){
 		});
 	}
 
+	function lookup(source, id, signal){
+		var provider = providers.find(function(p){ return p.name === source; });
+		if (!provider) return Promise.reject(new Error('unknown source: ' + source));
+		if (typeof provider.lookup !== 'function') return Promise.reject(new Error(source + ' does not support lookup'));
+		return provider.lookup(id, signal);
+	}
+
 	return {
 		register:     register,
 		searchAll:    searchAll,
+		lookup:       lookup,
 		getProviders: function(){ return providers.slice(); },
 	};
 })();
