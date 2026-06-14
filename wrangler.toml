@@ -9,8 +9,13 @@ compatibility_date = "2024-12-01"
 # Static game files served via the ASSETS binding. The Worker calls
 # env.ASSETS.fetch(request) to delegate to the static server.
 [assets]
-directory = "packages/game"
-binding   = "ASSETS"
+directory        = "packages/game"
+binding          = "ASSETS"
+# Without this, CF serves static index.html directly for `/` and our
+# Worker never runs (so the OG-meta rewrite never happens). With it,
+# the Worker is invoked on every request and we explicitly delegate to
+# env.ASSETS.fetch() for non-share-link requests.
+run_worker_first = true
 
 # Build delegates to a single explicit shell script — see the file for
 # what runs and why. Single source of truth for build steps + tool
