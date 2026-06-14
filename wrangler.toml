@@ -1,0 +1,27 @@
+# Cloudflare Workers + Static Assets — single Worker fronts the static
+# game build. CF Pages dashboard reads this file (in BETA as of 2026-06)
+# and configures the project from here — no clicks needed.
+
+name = "kulmination"
+main = "src/worker.js"
+compatibility_date = "2024-12-01"
+
+# Static game files served via the ASSETS binding. The Worker calls
+# env.ASSETS.fetch(request) to delegate to the static server.
+[assets]
+directory = "packages/game"
+binding   = "ASSETS"
+
+# Build runs before the Worker is uploaded. Produces dist/game.bundle.min.js
+# inside packages/game/ which the static asset server then exposes.
+[build]
+command = "cd packages/game && pnpm install --frozen-lockfile && pnpm run build"
+
+# Optional — KV namespace for caching Audius track metadata (1h TTL).
+# Worker degrades to direct-API calls if this binding is missing, so it's
+# safe to ship without it; uncomment + fill id after running
+# `wrangler kv namespace create META_CACHE`.
+#
+# [[kv_namespaces]]
+# binding = "META_CACHE"
+# id      = "..."
