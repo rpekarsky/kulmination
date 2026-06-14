@@ -658,7 +658,10 @@
 		function loadFromMeta(label, meta){
 			showLoading();
 			activeTrackId = null;
-			clearShareTrack();
+			// Meta saved before id-in-meta landed has source but no id —
+			// fall back to clearing the share state for those legacy entries.
+			if (meta.source && meta.id) setShareTrack(meta.source, meta.id);
+			else                        clearShareTrack();
 			infoEl.textContent = 'fetching ' + label + '…';
 			fetch(meta.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -706,13 +709,12 @@
 		// (no public URL on the other side to reconstruct from).
 		var currentShareTrack = null;
 
-		function setShareTrack(result){
-			var rawId = result.id.indexOf(':') > -1 ? result.id.split(':')[1] : result.id;
-			currentShareTrack = { source: result.source, id: rawId };
+		function setShareTrack(source, rawId){
+			currentShareTrack = { source: source, id: rawId };
 			shareBtn.classList.remove('hidden');
 			var url = new URL(location.href);
 			url.search = '';
-			url.searchParams.set('source', result.source);
+			url.searchParams.set('source', source);
 			url.searchParams.set('id',     rawId);
 			history.replaceState(null, '', url.toString());
 		}
@@ -725,8 +727,9 @@
 		function playSearchResult(result){
 			showLoading();
 			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
+			var rawId = result.id.indexOf(':') > -1 ? result.id.split(':')[1] : result.id;
 			activeTrackId = null;
-			setShareTrack(result);
+			setShareTrack(result.source, rawId);
 			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
 			fetch(result.audio).then(function(r){
 				if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -737,6 +740,7 @@
 					track_url: result.track_url,
 					duration:  result.duration,
 					source:    result.source,
+					id:        rawId,
 				});
 				return analyzeAndPlay(blob, label, true);
 			}).catch(function(err){
