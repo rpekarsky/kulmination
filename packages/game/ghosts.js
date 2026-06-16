@@ -176,8 +176,8 @@ var Ghosts = (function(){
     // beyond FAR fully transparent, linear between. Score units —
     // a coin is 100, so 100/500 = "within ~1 coin opaque, beyond
     // 5 coins gone".
-    var SCORE_DIFF_NEAR     = 100;
-    var SCORE_DIFF_FAR      = 500;
+    var SCORE_DIFF_NEAR     = 2000;
+    var SCORE_DIFF_FAR      = 5000;
 
     function spawn(rows){
         clear();
