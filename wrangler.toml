@@ -1,22 +1,27 @@
-# Cloudflare Pages config (via wrangler.toml — BETA as of 2026-06).
-# The repo deploys as a CF Pages project. With pages_build_output_dir
-# set, CF Pages parses this file and applies the bindings declared
-# here; without it, the entire toml is skipped and bindings have to be
-# clicked into the dashboard manually.
-#
-# Worker entrypoint for Pages convention: ${pages_build_output_dir}/_worker.js
-# (built by build.sh from src/worker.js + src/leaderboard.js via esbuild).
-# env.ASSETS is auto-bound from the output dir — no [assets] block needed.
+# Cloudflare Workers + Static Assets — single Worker fronts the static
+# game build. Deployed via CF's git-connected Workers project; the
+# Worker dashboard reads this file and configures bindings from here.
+# Custom domain play.kulmination.app routes to this Worker.
 
 name = "kulmination"
+main = "src/worker.js"
 compatibility_date = "2024-12-01"
-pages_build_output_dir = "packages/game"
+
+# Static game files served via the ASSETS binding. The Worker calls
+# env.ASSETS.fetch(request) to delegate to the static server.
+[assets]
+directory        = "packages/game"
+binding          = "ASSETS"
+# Without this, CF serves static index.html directly for `/` and our
+# Worker never runs (so the OG-meta rewrite never happens). With it,
+# the Worker is invoked on every request and we explicitly delegate to
+# env.ASSETS.fetch() for non-share-link requests.
+run_worker_first = true
 
 # Build delegates to a single explicit shell script — see the file for
 # what runs and why. Single source of truth for build steps + tool
 # versions; CF's build env diagnostics get dumped to the log on every
-# run so failures aren't opaque. CF Pages dashboard build-command
-# override (if set) needs to be CLEARED for this to apply.
+# run so failures aren't opaque.
 [build]
 command = "bash packages/game/.deploy/build.sh"
 

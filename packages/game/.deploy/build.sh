@@ -67,24 +67,6 @@ echo
 pnpm install --frozen-lockfile
 pnpm run build
 
-# ─── Worker bundle for CF Pages ─────────────────────────────────────
-# Pages convention: a single ESM `_worker.js` sitting at the build
-# output root. We bundle src/worker.js (+ its src/leaderboard.js
-# import) via esbuild so Pages just picks it up. Without this step
-# Pages sees only the static dir and /api/* + OG-meta rewriter
-# never run.
-echo "==============================================================="
-echo "[build] Bundling Pages _worker.js"
-echo "==============================================================="
-REPO_ROOT="$GAME_DIR/../.."
-pnpm exec esbuild "$REPO_ROOT/src/worker.js" \
-	--bundle \
-	--format=esm \
-	--platform=neutral \
-	--target=es2022 \
-	--outfile=_worker.js
-echo "  _worker.js: $(wc -c < _worker.js) bytes"
-
 # ─── Done ───────────────────────────────────────────────────────────
 echo "==============================================================="
 echo "[build] Done"
@@ -93,4 +75,3 @@ if [ -d dist ]; then
 	echo "  dist/ contents:"
 	ls -la dist/
 fi
-ls -la _worker.js 2>/dev/null || true
