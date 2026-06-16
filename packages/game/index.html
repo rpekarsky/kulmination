@@ -964,8 +964,11 @@
 
 				// Ghost data may have landed before the tube was ready —
 				// re-attach it now that spline/level are alive again.
+				// Wrapped in try/catch so a ghost-rendering bug never
+				// breaks the core swap-into-new-track flow.
 				if (typeof Ghosts !== 'undefined' && window.ghosts) {
-					Ghosts.spawn(window.ghosts);
+					try { Ghosts.spawn(window.ghosts); }
+					catch (e) { console.warn('Ghosts.spawn failed:', e); }
 				}
 
 				// Score/multiplier/streak get reset; best score for this track
@@ -1278,17 +1281,30 @@
 			// stale response. If the tube/spline is already up by the
 			// time the response arrives (fast network, slow audio), we
 			// spawn immediately — otherwise swap() will do it.
+			//
+			// Guards: each ghost-mode dependency is checked separately
+			// so a missing/older Leaderboard / Ghosts module never blocks
+			// the audio fetch that follows this call.
 			window.ghosts = null;
-			if (typeof Ghosts !== 'undefined') Ghosts.clear();
-			var expected = currentShareTrack;
-			Leaderboard.ghosts(source, rawId, 10).then(function(data){
-				if (currentShareTrack !== expected) return;
-				window.ghosts = (data && data.rows) || [];
-				console.log('ghosts loaded:', window.ghosts.length, 'runs for', source + ':' + rawId);
-				if (typeof Ghosts !== 'undefined' && typeof spline !== 'undefined') {
-					Ghosts.spawn(window.ghosts);
+			if (typeof Ghosts !== 'undefined') {
+				try { Ghosts.clear(); } catch (e) { console.warn('Ghosts.clear failed:', e); }
+			}
+			if (typeof Leaderboard !== 'undefined' && typeof Leaderboard.ghosts === 'function') {
+				var expected = currentShareTrack;
+				try {
+					Leaderboard.ghosts(source, rawId, 10).then(function(data){
+						if (currentShareTrack !== expected) return;
+						window.ghosts = (data && data.rows) || [];
+						console.log('ghosts loaded:', window.ghosts.length, 'runs for', source + ':' + rawId);
+						if (typeof Ghosts !== 'undefined' && typeof spline !== 'undefined') {
+							try { Ghosts.spawn(window.ghosts); }
+							catch (e) { console.warn('Ghosts.spawn failed:', e); }
+						}
+					}).catch(function(e){ console.warn('ghosts fetch failed:', e); });
+				} catch (e) {
+					console.warn('Leaderboard.ghosts call threw:', e);
 				}
-			});
+			}
 		}
 		function clearShareTrack(){
 			currentShareTrack = null;

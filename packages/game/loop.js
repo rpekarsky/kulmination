@@ -80,7 +80,10 @@ function mainloop(){
 	gameCam.update();
 	player.update();
 	Obstacles.update();
-	if (typeof Ghosts !== 'undefined') Ghosts.update();
+	if (typeof Ghosts !== 'undefined') {
+		try { Ghosts.update(); }
+		catch (e) { console.warn('Ghosts.update failed:', e); }
+	}
 	// colorHSL.h = colorHSLMain.h
 	// colorHSL.h += (colorHSLMain.h-colorHSL.h)*0.5;
 	// colorHSL.s += (colorHSLMain.s-colorHSL.s)*0.2;
