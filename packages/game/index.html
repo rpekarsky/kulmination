@@ -773,7 +773,8 @@
 		window.addEventListener('track-finished', function(){
 			var finishedTrack = currentShareTrack;
 			var finishedScore = (typeof scoring !== 'undefined') ? scoring.getScore() : (window.SCORE | 0);
-			LeaderboardUI.onTrackFinished(finishedTrack, finishedScore);
+			var finishedHistory = (typeof scoring !== 'undefined') ? scoring.getHistory() : null;
+			LeaderboardUI.onTrackFinished(finishedTrack, finishedScore, finishedHistory);
 			clearShareTrack();
 			exitGameState();
 		});

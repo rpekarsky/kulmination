@@ -1,0 +1,11 @@
+-- Migration 001: add per-play score timeline.
+-- Apply once on environments that were initialized before the `history`
+-- column landed in schema.sql:
+--
+--   wrangler d1 execute kulmination_db --local  --file=.deploy/migrations/001-history.sql
+--   wrangler d1 execute kulmination_db --remote --file=.deploy/migrations/001-history.sql
+--
+-- New environments don't need this — schema.sql already includes the
+-- column. The ALTER is idempotent-ish via the IF NOT EXISTS guard
+-- (sqlite 3.35+ supports this on D1).
+ALTER TABLE plays ADD COLUMN history TEXT;

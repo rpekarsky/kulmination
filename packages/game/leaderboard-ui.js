@@ -61,16 +61,17 @@ var LeaderboardUI = (function(){
         bindFeed(mostPlayedEl);
     }
 
-    function onTrackFinished(track, score){
+    function onTrackFinished(track, score, history){
         // Skip leaderboard for custom drops (no stable id) and any track
         // where we don't have a source/id pair.
         if (!track || !track.source || !track.id) return;
         pending = {
-            source: track.source,
-            id:     track.id,
-            title:  track.title  || track.id,
-            artist: track.artist || null,
-            score:  score | 0,
+            source:  track.source,
+            id:      track.id,
+            title:   track.title  || track.id,
+            artist:  track.artist || null,
+            score:   score | 0,
+            history: Array.isArray(history) ? history : null,
         };
         showLeaderboardLoading();
         Leaderboard.leaderboard(pending.source, pending.id).then(renderLeaderboard);
@@ -173,6 +174,7 @@ var LeaderboardUI = (function(){
             artist:   pending.artist,
             nickname: nick,
             score:    pending.score,
+            history:  pending.history,
         };
         // Lock the buttons during the round trip.
         el.querySelectorAll('button').forEach(function(b){ b.disabled = true; });

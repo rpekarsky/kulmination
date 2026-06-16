@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS plays (
   track_artist TEXT,
   nickname     TEXT    NOT NULL,
   score        INTEGER NOT NULL,
-  played_at    INTEGER NOT NULL
+  played_at    INTEGER NOT NULL,
+  history      TEXT             -- JSON [[t_ms_on_track, score, multiplier], …]
 );
 
 CREATE INDEX IF NOT EXISTS plays_by_track  ON plays (track_source, track_id, score DESC);

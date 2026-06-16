@@ -5,6 +5,7 @@ var scoring = (function(){
 	var STREAK_TO_NEXT  = 10;
 	var BUNDLED_PREFIX  = 'kulm_best_';
 	var CUSTOM_PREFIX   = 'kulm_best_custom_';
+	var HISTORY_CAP     = 1000;     // safety cap on entries per play
 
 	var state = {
 		score:          0,
@@ -13,7 +14,22 @@ var scoring = (function(){
 		currentTrackId: null,
 		currentIsCustom:false,
 		currentBest:    0,
+		history:        [],         // [[t_ms_on_track, score, multiplier], …]
 	};
+
+	// `t` is the playhead position (ms) on the audio track, NOT wall-clock
+	// — this aligns history entries to the music itself, so two players
+	// who scored at the same beat have identical t values regardless of
+	// when they ran the track. Falls back to 0 before MPlayer is wired.
+	function trackTimeMs(){
+		if (typeof MPlayer === 'undefined' || !MPlayer.audio) return 0;
+		return Math.round(MPlayer.audio.currentTime * 1000);
+	}
+
+	function recordHistory(){
+		if (state.history.length >= HISTORY_CAP) return;
+		state.history.push([trackTimeMs(), state.score, state.multiplier]);
+	}
 
 	function storageKey(){
 		if (!state.currentTrackId) return null;
@@ -40,11 +56,13 @@ var scoring = (function(){
 		pickup: function(base){
 			state.score += base * state.multiplier;
 			streakStep();
+			recordHistory();
 			refresh();
 		},
 		hit: function(){
 			state.multiplier = 1;
 			state.streak = 0;
+			recordHistory();
 			refresh();
 		},
 
@@ -52,6 +70,7 @@ var scoring = (function(){
 			state.score = 0;
 			state.multiplier = 1;
 			state.streak = 0;
+			state.history = [];
 			state.currentTrackId = trackId || null;
 			state.currentIsCustom = !!isCustom;
 			var key = storageKey();
@@ -89,6 +108,7 @@ var scoring = (function(){
 		getBest:       function(){ return state.currentBest; },
 		getTrackId:    function(){ return state.currentTrackId; },
 		getIsCustom:   function(){ return state.currentIsCustom; },
+		getHistory:    function(){ return state.history.slice(); },
 	};
 })();
 

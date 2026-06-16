@@ -30,6 +30,19 @@ var Leaderboard = (function(){
             .catch(function(){ return { rows: [], total: 0 }; });
     }
 
+    // Top-N for the track with full timeline. Use at track start for
+    // ghost-mode. Heavier than plain leaderboard() — only call when we
+    // actually intend to render ghosts.
+    function ghosts(source, id, limit){
+        var q = '?source=' + encodeURIComponent(source) +
+                '&id='     + encodeURIComponent(id) +
+                '&limit='  + (limit || 10) +
+                '&include_history=1';
+        return fetch(BASE + '/leaderboard' + q)
+            .then(function(r){ return r.ok ? r.json() : { rows: [] }; })
+            .catch(function(){ return { rows: [] }; });
+    }
+
     function recent(){
         return fetch(BASE + '/recent')
             .then(function(r){ return r.ok ? r.json() : { rows: [] }; })
@@ -46,6 +59,7 @@ var Leaderboard = (function(){
         isValidNickname: isValidNickname,
         submit:          submit,
         leaderboard:     leaderboard,
+        ghosts:          ghosts,
         recent:          recent,
         mostPlayed:      mostPlayed,
     };

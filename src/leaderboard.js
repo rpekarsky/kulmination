@@ -18,6 +18,10 @@ const MAX_ARTIST  = 200;
 const MAX_ID_LEN  = 128;
 const ALLOWED_SOURCES = new Set(['audius', 'bundled']);
 
+const HISTORY_MAX_ENTRIES   = 1500;       // per-play cap
+const HISTORY_MAX_T_MS      = 30 * 60_000; // 30 min, anything past is junk
+const HISTORY_MAX_BYTES     = 32 * 1024;  // post-JSON sanity cap
+
 const LEADERBOARD_CAP   = 1000;    // safety cap on rows returned per track
 const RECENT_LIMIT      = 20;
 const MOST_PLAYED_LIMIT = 10;
@@ -59,8 +63,8 @@ async function submitPlay(request, env) {
 
     const now = Date.now();
     await env.DB.prepare(
-        'INSERT INTO plays (track_source, track_id, track_title, track_artist, nickname, score, played_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(v.source, v.id, v.title, v.artist, v.nickname, v.score, now).run();
+        'INSERT INTO plays (track_source, track_id, track_title, track_artist, nickname, score, played_at, history) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(v.source, v.id, v.title, v.artist, v.nickname, v.score, now, v.historyJson).run();
 
     const rankRow = await env.DB.prepare(
         'SELECT COUNT(*) AS rank FROM plays WHERE track_source = ? AND track_id = ? AND score > ?'
@@ -72,7 +76,7 @@ async function submitPlay(request, env) {
 
 function validatePlay(body) {
     if (!body || typeof body !== 'object')          return { error: 'body missing' };
-    const { source, id, title, artist, nickname, score } = body;
+    const { source, id, title, artist, nickname, score, history } = body;
     if (!ALLOWED_SOURCES.has(source))               return { error: 'invalid source' };
     if (typeof id !== 'string' || !id.length || id.length > MAX_ID_LEN)
                                                     return { error: 'invalid id' };
@@ -84,7 +88,35 @@ function validatePlay(body) {
                                                     return { error: 'invalid nickname' };
     if (!Number.isInteger(score) || score < 0 || score > MAX_SCORE)
                                                     return { error: 'invalid score' };
-    return { source, id, title, artist: artist || null, nickname, score };
+
+    const hv = validateHistory(history);
+    if (hv.error) return { error: hv.error };
+
+    return { source, id, title, artist: artist || null, nickname, score, historyJson: hv.json };
+}
+
+// History is an array of [t_ms_on_track, score, multiplier] triples. We
+// keep it lightweight: cap entry count, cap t bounds, cap final JSON
+// size. Missing / empty history is allowed — older clients submit
+// without it. Returned value is the JSON string ready to INSERT (or
+// null if no history).
+function validateHistory(history) {
+    if (history == null) return { json: null };
+    if (!Array.isArray(history))                  return { error: 'history not array' };
+    if (history.length > HISTORY_MAX_ENTRIES)     return { error: 'history too long' };
+
+    for (let i = 0; i < history.length; i++) {
+        const e = history[i];
+        if (!Array.isArray(e) || e.length !== 3) return { error: 'history entry shape' };
+        const [t, s, m] = e;
+        if (!Number.isFinite(t) || t < 0 || t > HISTORY_MAX_T_MS) return { error: 'history t out of range' };
+        if (!Number.isInteger(s) || s < 0 || s > MAX_SCORE)        return { error: 'history score out of range' };
+        if (!Number.isInteger(m) || m < 1 || m > 1000)             return { error: 'history multiplier out of range' };
+    }
+
+    const j = JSON.stringify(history);
+    if (j.length > HISTORY_MAX_BYTES) return { error: 'history too large' };
+    return { json: j };
 }
 
 async function getLeaderboard(env, url) {
@@ -94,15 +126,37 @@ async function getLeaderboard(env, url) {
         return json({ error: 'source + id required' }, 400);
     }
 
+    // include_history defaults off — the timeline JSON is heavy and only
+    // ghost-mode at track-start actually needs it. The post-finish
+    // leaderboard panel just shows nickname/score/rank.
+    const includeHistory = url.searchParams.get('include_history') === '1';
+    const limit = clampInt(url.searchParams.get('limit'), 1, LEADERBOARD_CAP, LEADERBOARD_CAP);
+
+    const cols = includeHistory
+        ? 'nickname, score, played_at, history'
+        : 'nickname, score, played_at';
     const top = await env.DB.prepare(
-        'SELECT nickname, score, played_at FROM plays WHERE track_source = ? AND track_id = ? ORDER BY score DESC, played_at ASC LIMIT ?'
-    ).bind(source, id, LEADERBOARD_CAP).all();
+        `SELECT ${cols} FROM plays WHERE track_source = ? AND track_id = ? ORDER BY score DESC, played_at ASC LIMIT ?`
+    ).bind(source, id, limit).all();
+
+    const rows = (top.results || []).map(r => {
+        if (!includeHistory) return r;
+        let history = null;
+        try { history = r.history ? JSON.parse(r.history) : null; } catch {}
+        return { nickname: r.nickname, score: r.score, played_at: r.played_at, history };
+    });
 
     const totalRow = await env.DB.prepare(
         'SELECT COUNT(*) AS total FROM plays WHERE track_source = ? AND track_id = ?'
     ).bind(source, id).first();
 
-    return json({ rows: top.results || [], total: totalRow?.total ?? 0, cap: LEADERBOARD_CAP });
+    return json({ rows, total: totalRow?.total ?? 0, cap: LEADERBOARD_CAP });
+}
+
+function clampInt(s, min, max, fallback) {
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
 }
 
 async function getRecent(env) {
