@@ -351,12 +351,6 @@
 	.overlay .share:hover { color: var(--fg-bright); border-color: var(--border-hot); }
 	.overlay .share.hidden { display: none; }
 
-	.overlay #render-value {
-		color: var(--fg-muted);
-		font-variant-numeric: tabular-nums;
-		min-width: calc(20px * var(--ui-scale));
-	}
-
 	#drop-overlay {
 		display: none;
 		position: fixed; inset: 0;
@@ -646,11 +640,6 @@
 			<span class="vol-label" data-channel="sfx" title="click to mute">sfx</span>
 			<input type="range" id="sfx-slider" min="0" max="100">
 		</span>
-		<span class="vol">
-			<span class="vol-label" style="cursor: default" title="pixel-perfect render scale">render</span>
-			<input type="range" id="render-slider" min="1" max="6" step="1">
-			<span id="render-value">3×</span>
-		</span>
 	</div>
 
 	<!-- Boot-time script order — single source of truth for both the
@@ -721,12 +710,14 @@
 		}
 
 		// Render-scale — buffer at (viewport / scale), canvas CSS at full
-		// viewport, image-rendering: pixelated. Default 3× for the chunky
-		// pixel-perfect look + 9× pixel-fill saving. Cameras follow viewport,
-		// not buffer (so FOV stays correct).
-		var RENDER_SCALE_KEY = 'kulm_render_scale';
-		var renderScaleEl    = null;   // populated by wireRenderScale
-		var renderValueEl    = null;
+		// viewport, image-rendering: pixelated when scale > 1. Default 1×
+		// (full-resolution render). The UI slider was removed but the
+		// override path stays: set `kulm_render_scale_v2` in localStorage
+		// to 2..6 and refresh for chunky-pixel mode.
+		//
+		// Key bumped from `kulm_render_scale` to `_v2` so users who had a
+		// stale 3× saved from the old UI fall back to the new default.
+		var RENDER_SCALE_KEY = 'kulm_render_scale_v2';
 		function applyRenderScale(scale){
 			scale = Math.max(1, Math.min(6, scale | 0));
 			var w = Math.floor(window.innerWidth  / scale);
@@ -737,20 +728,9 @@
 			window.renderer.domElement.style.imageRendering = scale > 1 ? 'pixelated' : 'auto';
 			if (window.camera)  { window.camera.aspect  = window.innerWidth / window.innerHeight; window.camera.updateProjectionMatrix(); }
 			if (window.camera2) { window.camera2.aspect = window.innerWidth / window.innerHeight; window.camera2.updateProjectionMatrix(); }
-			if (renderScaleEl) renderScaleEl.value = String(scale);
-			if (renderValueEl) renderValueEl.textContent = scale + '×';
 		}
 		function wireRenderScale(){
-			renderScaleEl = document.getElementById('render-slider');
-			renderValueEl = document.getElementById('render-value');
-			var saved = parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '3', 10);
-			applyRenderScale(saved);
-			renderScaleEl.addEventListener('input', function(e){
-				var v = parseInt(e.target.value, 10);
-				applyRenderScale(v);
-				localStorage.setItem(RENDER_SCALE_KEY, String(v));
-			});
-			renderScaleEl.addEventListener('keydown', function(e){ e.stopPropagation(); });
+			applyRenderScale(parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '1', 10));
 			window.addEventListener('resize', function(){
 				applyRenderScale(parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '1', 10));
 			});
