@@ -1,11 +1,14 @@
 // Ghost runners — visual overlay of top leaderboard runs on the same
-// track. Each ghost holds a recorded score timeline (from /api/leaderboard
-// ?include_history=1). At every frame we look up where the ghost's
-// score was at the current playhead, compute the score delta vs the
-// player, and translate that to an arc-length offset on the spline.
-// Net effect: ghost appears "ahead" if it's outscoring you, "behind"
-// if you're outscoring it — even though physically you all travel the
-// same tube at the same speed.
+// track. Each ghost holds a recorded score timeline (history) and at
+// every frame the live player's score is compared to where the ghost
+// was at the current playhead. The score delta translates to an
+// arc-length offset on the spline: ghost appears "ahead" if outscoring
+// you, "behind" if you're outscoring it.
+//
+// Smoothing model: both the player's and each ghost's "score-for-
+// rendering" exponentially lerp toward their actual values. Position
+// is derived from the smoothed scores, so a pickup (+100 instant) reads
+// as a deliberate slide rather than a teleport.
 
 var Ghost = (function(){
     var bodyMaterial = new THREE.MeshBasicMaterial({
@@ -16,12 +19,11 @@ var Ghost = (function(){
     });
 
     function Ghost(row, index){
-        this.nickname = row.nickname;
-        this.score    = row.score;
-        this.history  = Array.isArray(row.history) ? row.history : [];
-        this._cursor  = 0;                  // forward-walking lookup hint
-        this._smoothPos = null;             // null until first update sets a seed
-        this._lastT     = 0;                // performance.now() of last update
+        this.nickname     = row.nickname;
+        this.score        = row.score;
+        this.history      = Array.isArray(row.history) ? row.history : [];
+        this._cursor      = 0;            // forward-walking lookup hint
+        this._smoothScore = null;         // null until first update seeds it
 
         this.geom = new THREE.BoxGeometry(1, 1, 1);
         this.mesh = new THREE.Mesh(this.geom, bodyMaterial);
@@ -49,65 +51,41 @@ var Ghost = (function(){
         this.labelEl.textContent = this.nickname;
     }
 
-    // Find ghost's score at playhead t (ms). Uses _cursor as a hint —
-    // sequential calls during gameplay almost always advance forward.
+    // Find ghost's actual score at playhead t (ms). Forward-cursor with
+    // back-walk-on-seek so it's O(1) amortized along normal playback.
     Ghost.prototype.scoreAt = function(tMs){
         var h = this.history;
         if (!h.length) return 0;
         var i = this._cursor;
-        // Move forward if needed.
         while (i < h.length && h[i][0] <= tMs) i++;
-        // Move back if playhead jumped (seek).
         while (i > 0 && h[i - 1][0] > tMs) i--;
         this._cursor = Math.max(0, Math.min(i, h.length));
         if (this._cursor === 0) return 0;
         return h[this._cursor - 1][1];
     };
 
-    Ghost.prototype.update = function(playerPos, playerScore){
+    // Called per frame. `alpha` is the shared lerp coefficient for this
+    // frame (1 - exp(-dt/TIME_CONSTANT)) — same for the player score
+    // smoothing in Ghosts.update so both interpolations stay in sync.
+    Ghost.prototype.update = function(playerPos, playerSmoothScore, alpha){
         var tMs = (typeof MPlayer !== 'undefined' && MPlayer.audio)
             ? MPlayer.audio.currentTime * 1000 : 0;
-        var ghostScore = this.scoreAt(tMs);
+        var actualGhostScore = this.scoreAt(tMs);
+
+        if (this._smoothScore === null) this._smoothScore = actualGhostScore;
+        else                            this._smoothScore += (actualGhostScore - this._smoothScore) * alpha;
 
         // delta > 0 → player ahead in score → ghost should appear BEHIND
         // delta < 0 → ghost ahead in score → ghost appears AHEAD of player
-        var delta      = playerScore - ghostScore;
-        var offset     = delta * Ghosts.SCORE_TO_POSITION;
-        var desiredPos = playerPos - offset;
+        var delta = playerSmoothScore - this._smoothScore;
+        var pos   = playerPos - delta * Ghosts.SCORE_TO_POSITION;
 
-        // Critically-damped lerp toward desiredPos. Time constant ≈ 0.5s
-        // (alpha = 1 - exp(-dt/0.5)), frame-rate independent. First call
-        // seeds smoothPos to desired so the ghost doesn't fly in from
-        // zero on spawn.
-        var now = performance.now();
-        if (this._smoothPos === null) {
-            this._smoothPos = desiredPos;
-        } else {
-            var dt    = Math.max(0, (now - this._lastT) / 1000);
-            var alpha = 1 - Math.exp(-dt / Ghosts.LERP_TIME_CONSTANT);
-            this._smoothPos += (desiredPos - this._smoothPos) * alpha;
-        }
-        this._lastT = now;
-        var pos = this._smoothPos;
-
-        // Clamp inside the spline range; off-spline ghosts get hidden.
         if (pos < 0 || pos > level.length) {
             this.pivotPosition.visible = false;
             this.labelEl.style.display = 'none';
             return;
         }
         this.pivotPosition.visible = true;
-
-        // Linear fade of the nickname based on arc-distance to the
-        // player. Within FADE_NEAR fully opaque; past FADE_FAR fully
-        // transparent; smooth interpolation in between.
-        var dist     = Math.abs(pos - playerPos);
-        var fadeNear = Ghosts.LABEL_FADE_NEAR;
-        var fadeFar  = Ghosts.LABEL_FADE_FAR;
-        var labelOpacity = 1;
-        if (dist > fadeNear) {
-            labelOpacity = Math.max(0, 1 - (dist - fadeNear) / (fadeFar - fadeNear));
-        }
 
         var t   = pos / level.length;
         var pt  = spline.getPointAt(t);
@@ -123,20 +101,35 @@ var Ghost = (function(){
         // Project mesh world position to screen for the HTML label.
         // Three.js r67 has applyProjection (incl. perspective divide) but
         // no Vector3.project shortcut yet — do the matrix composition by
-        // hand. Cached on the function so we don't allocate a new Matrix4
-        // every frame per ghost.
+        // hand. Shared scratch Matrix4 to avoid per-frame allocation.
         var worldPos = new THREE.Vector3();
         this.mesh.updateMatrixWorld();
         worldPos.setFromMatrixPosition(this.mesh.matrixWorld);
         var m = Ghost._projMatrix;
         m.multiplyMatrices(mainCamera.projectionMatrix, mainCamera.matrixWorldInverse);
         worldPos.applyProjection(m);
-        // After applyProjection, components are in clip space ([-1,1] when
-        // visible). z > 1 → behind near plane / outside frustum.
         if (worldPos.z > 1 || worldPos.z < -1 || Math.abs(worldPos.x) > 1.2 || Math.abs(worldPos.y) > 1.2) {
             this.labelEl.style.display = 'none';
             return;
         }
+
+        // Label opacity by score-diff (use actual values — the visible
+        // intent is "who's nearby in score right now", not the smoothed
+        // value that's still catching up to a pickup). Inside NEAR fully
+        // opaque, past FAR fully transparent, linear in between.
+        var scoreDiff   = Math.abs(playerSmoothScore - actualGhostScore);
+        var near        = Ghosts.SCORE_DIFF_NEAR;
+        var far         = Ghosts.SCORE_DIFF_FAR;
+        var labelOpacity;
+        if (scoreDiff <= near)      labelOpacity = 1;
+        else if (scoreDiff >= far)  labelOpacity = 0;
+        else                        labelOpacity = 1 - (scoreDiff - near) / (far - near);
+
+        if (labelOpacity <= 0.01) {
+            this.labelEl.style.display = 'none';
+            return;
+        }
+
         var x = (worldPos.x + 1) / 2 * window.innerWidth;
         var y = (-worldPos.y + 1) / 2 * window.innerHeight;
         this.labelEl.style.display = 'block';
@@ -145,8 +138,6 @@ var Ghost = (function(){
         this.labelEl.style.opacity = labelOpacity;
     };
 
-    // Shared scratch matrix for screen-projection — reused every frame
-    // by every ghost. Avoids per-frame allocation of Matrix4 instances.
     Ghost._projMatrix = new THREE.Matrix4();
 
     Ghost.prototype.attach = function(){
@@ -168,21 +159,25 @@ var Ghost = (function(){
 var Ghosts = (function(){
     var active = [];
 
-    // Arc-units of spline displacement per point of score delta. The
-    // tube uses tubeRadius=30 with level.length usually in the tens of
-    // thousands per 3-min track; ~0.1 puts a 200-point lead ≈20 units
-    // ahead, which is roughly Obstacles.screen visibility range.
+    // Player's smoothed score for ghost-offset rendering. Lerps toward
+    // scoring.getScore() with the same alpha each ghost uses for its
+    // own smoothing — keeps the relative-deltas consistent.
+    var playerSmoothScore = null;
+    var lastT             = 0;
+
+    // Arc-units of spline displacement per point of score delta.
     var SCORE_TO_POSITION   = 0.1;
 
-    // Smoothing for ghost position: exponential lerp with this time
-    // constant. ~0.5s feels like a deliberate slide rather than a snap
-    // when the player picks up a coin and the ghost differential jumps.
-    var LERP_TIME_CONSTANT  = 0.5;
+    // Score-smoothing time constant. ~0.3s lets a pickup slide visibly
+    // without lingering forever.
+    var LERP_TIME_CONSTANT  = 0.3;
 
-    // Nickname label fade by arc-distance to player. Inside FADE_NEAR
-    // fully opaque; past FADE_FAR fully transparent.
-    var LABEL_FADE_NEAR     = 30;
-    var LABEL_FADE_FAR      = 200;
+    // Nickname label fade by score-diff. Inside NEAR fully opaque,
+    // beyond FAR fully transparent, linear between. Score units —
+    // a coin is 100, so 100/500 = "within ~1 coin opaque, beyond
+    // 5 coins gone".
+    var SCORE_DIFF_NEAR     = 100;
+    var SCORE_DIFF_FAR      = 500;
 
     function spawn(rows){
         clear();
@@ -199,14 +194,29 @@ var Ghosts = (function(){
     function clear(){
         for (var i = 0; i < active.length; i++) active[i].detach();
         active = [];
+        playerSmoothScore = null;
+        lastT = 0;
     }
 
     function update(){
         if (!active.length || typeof player === 'undefined') return;
-        var playerScore = (typeof scoring !== 'undefined') ? scoring.getScore() : 0;
-        var playerPos   = player.position;
+        var actualPlayerScore = (typeof scoring !== 'undefined') ? scoring.getScore() : 0;
+        var playerPos         = player.position;
+
+        var now = performance.now();
+        var alpha;
+        if (playerSmoothScore === null) {
+            playerSmoothScore = actualPlayerScore;
+            alpha = 1;
+        } else {
+            var dt = Math.max(0, (now - lastT) / 1000);
+            alpha  = 1 - Math.exp(-dt / LERP_TIME_CONSTANT);
+            playerSmoothScore += (actualPlayerScore - playerSmoothScore) * alpha;
+        }
+        lastT = now;
+
         for (var i = 0; i < active.length; i++) {
-            active[i].update(playerPos, playerScore);
+            active[i].update(playerPos, playerSmoothScore, alpha);
         }
     }
 
@@ -216,7 +226,7 @@ var Ghosts = (function(){
         update: update,
         SCORE_TO_POSITION:  SCORE_TO_POSITION,
         LERP_TIME_CONSTANT: LERP_TIME_CONSTANT,
-        LABEL_FADE_NEAR:    LABEL_FADE_NEAR,
-        LABEL_FADE_FAR:     LABEL_FADE_FAR,
+        SCORE_DIFF_NEAR:    SCORE_DIFF_NEAR,
+        SCORE_DIFF_FAR:     SCORE_DIFF_FAR,
     };
 })();

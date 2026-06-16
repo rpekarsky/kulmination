@@ -405,13 +405,9 @@
 		letter-spacing: 1px;
 		pointer-events: none;
 		white-space: nowrap;
-		/* 8-way pixel outline keeps the nickname readable against the
-		   tube / scenery without a solid backdrop. Same trick the
-		   #game-hud uses. */
-		text-shadow:
-			-1px -1px 0 #000,  0 -1px 0 #000,  1px -1px 0 #000,
-			-1px  0   0 #000,                  1px  0   0 #000,
-			-1px  1px 0 #000,  0  1px 0 #000,  1px  1px 0 #000;
+		/* Top+bottom outline only — lighter weight than full 8-way,
+		   still readable against the tube without a solid backdrop. */
+		text-shadow: 0 -1px 0 #000, 0 1px 0 #000;
 		z-index: 90;
 	}
 
