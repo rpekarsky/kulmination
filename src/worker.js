@@ -6,10 +6,18 @@
 // Bindings (wrangler.toml):
 //   env.ASSETS     — static asset server (the packages/game/ output)
 //   env.META_CACHE — KV namespace, optional, 1h TTL on track lookups
+//   env.DB         — D1 database, optional, backs /api/* leaderboard
+
+import { handleApi } from './leaderboard.js';
 
 export default {
 	async fetch(request, env, ctx) {
 		const url    = new URL(request.url);
+
+		if (url.pathname.startsWith('/api/')) {
+			return handleApi(request, env, url);
+		}
+
 		const source = url.searchParams.get('source');
 		const id     = url.searchParams.get('id');
 

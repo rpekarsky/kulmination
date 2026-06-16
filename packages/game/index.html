@@ -138,22 +138,18 @@
 	#hud-streak     { font-size: 24pt; line-height: 1; transform-origin: right center; margin-top: 4px; }
 
 	#hint {
-		position: fixed;
-		top: 120px; left: 50%;
-		transform: translateX(-50%);
 		padding: 12px 18px;
 		background: rgba(255,255,255,0.06);
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		z-index: 110;
 		font-size: calc(13px * var(--ui-scale));
 		color: var(--fg);
 		text-align: center;
-		width: 500px;
-		max-width: 90vw;
 		box-sizing: border-box;
+		flex: 0 1 500px;
+		min-width: 280px;
 	}
 	#hint.hidden { display: none; }
 	#hint h1 { margin: 0 0 8px; font-size: calc(18px * var(--ui-scale)); letter-spacing: 2px; color: var(--fg-bright); }
@@ -395,21 +391,211 @@
 		background: rgba(0,0,0,0.55);
 		border-radius: var(--radius);
 	}
+
+	/* Menu overlay — CSS grid with auto-fit columns. Each column is
+	   bounded 320px..480px wide; the grid fits as many as can hold their
+	   minimum and wraps the rest. justify-content:center keeps wrapped
+	   rows visually anchored. Top padding clears the .overlay top bar
+	   (≈48px tall) so panels don't crowd the cover/volume/share controls. */
+	#menu-overlay {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(320px, 480px));
+		gap: 16px;
+		justify-content: center;
+		align-content: start;
+		padding: 68px 16px 16px;
+		box-sizing: border-box;
+		z-index: 105;
+		pointer-events: none;
+		overflow-y: auto;
+	}
+	#menu-overlay > * { pointer-events: auto; }
+
+	/* The left column stacks recent + most-played as a single grid item.
+	   Hide the column entirely when all children are hidden so it
+	   surrenders its grid slot instead of leaving a gap. */
+	.menu-col {
+		display: none;
+		flex-direction: column;
+		gap: 16px;
+	}
+	.menu-col:has(> :not(.hidden)) { display: flex; }
+
+	/* Panel visual = same CRT-glass language as #hint. */
+	#leaderboard-panel,
+	#recent-panel,
+	#most-played-panel {
+		padding: 14px 18px;
+		background: var(--bg-panel);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		font-size: calc(12px * var(--ui-scale));
+		color: var(--fg);
+		box-sizing: border-box;
+	}
+	#leaderboard-panel.hidden,
+	#recent-panel.hidden,
+	#most-played-panel.hidden { display: none; }
+
+	/* Eyebrow-style label for the feed panels — small uppercase letter-
+	   spaced caption sitting above the list. Lets the list content
+	   itself carry the visual weight. */
+	.panel-eyebrow {
+		margin: 0 0 8px;
+		font-size: calc(10px * var(--ui-scale));
+		letter-spacing: 3px;
+		color: var(--fg-muted);
+		text-align: center;
+	}
+
+	/* The track title is the panel header — no separate <h1>. */
+	#leaderboard-panel .lb-track {
+		text-align: center;
+		color: var(--fg-bright);
+		margin: 0 0 12px;
+		font-size: calc(14px * var(--ui-scale));
+		line-height: 1.2;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#leaderboard-panel .lb-track .lb-artist {
+		color: var(--fg-muted);
+		font-size: calc(11px * var(--ui-scale));
+	}
+
+	#leaderboard-panel .lb-rows {
+		display: flex; flex-direction: column;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		padding: 4px 8px;
+		line-height: 1.5;
+		margin-bottom: 10px;
+		max-height: 60vh;
+		overflow-y: auto;
+	}
+	#leaderboard-panel .lb-row {
+		display: grid;
+		grid-template-columns: 28px 1fr auto;
+		gap: 8px;
+		align-items: center;
+	}
+	#leaderboard-panel .lb-row-self { background: var(--bg-input); }
+	#leaderboard-panel .lb-rank  { color: var(--fg-muted); text-align: right; }
+	#leaderboard-panel .lb-nick  { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	#leaderboard-panel .lb-score { color: var(--fg-bright); font-variant-numeric: tabular-nums; text-align: right; }
+	#leaderboard-panel .lb-sep   { text-align: center; color: var(--fg-dim); padding: 2px 0; }
+
+	#leaderboard-panel .lb-nick-input {
+		background: transparent;
+		border: none;
+		border-bottom: 1px solid var(--border-hot);
+		color: var(--fg-bright);
+		font-family: inherit;
+		font-size: inherit;
+		padding: 0 2px;
+		outline: none;
+		width: 100%;
+		min-width: 0;
+	}
+	#leaderboard-panel .lb-nick-input:focus { border-bottom-color: var(--fg-bright); }
+
+	#leaderboard-panel .lb-actions {
+		display: flex; gap: 8px; justify-content: center;
+	}
+	#leaderboard-panel .lb-actions button {
+		background: var(--bg-input);
+		color: var(--fg-bright);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		padding: 6px 14px;
+		font-family: inherit;
+		font-size: inherit;
+		cursor: pointer;
+		letter-spacing: 1px;
+	}
+	#leaderboard-panel .lb-actions button:hover:not(:disabled) {
+		border-color: var(--border-hot);
+		background: var(--bg-drop);
+	}
+	#leaderboard-panel .lb-actions button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	#leaderboard-panel .lb-loading { text-align: center; color: var(--fg-muted); padding: 20px 0; }
+	#leaderboard-panel .lb-error {
+		color: var(--error);
+		text-align: center;
+		font-size: calc(10px * var(--ui-scale));
+		margin-top: 8px;
+		min-height: 1em;
+	}
+
+	#recent-panel .feed-rows,
+	#most-played-panel .feed-rows {
+		display: flex; flex-direction: column;
+		gap: 8px;
+		max-height: 380px;
+		overflow-y: auto;
+	}
+	#recent-panel .feed-row,
+	#most-played-panel .feed-row {
+		cursor: pointer;
+		padding: 4px 6px;
+		border-radius: var(--radius);
+		border: 1px solid transparent;
+	}
+	#recent-panel .feed-row:hover,
+	#most-played-panel .feed-row:hover {
+		border-color: var(--border);
+		background: var(--bg-drop);
+	}
+	#recent-panel .feed-title,
+	#most-played-panel .feed-title {
+		color: var(--fg-bright);
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+	#recent-panel .feed-artist,
+	#most-played-panel .feed-artist {
+		color: var(--fg-muted);
+		font-size: calc(10px * var(--ui-scale));
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+	#recent-panel .feed-meta,
+	#most-played-panel .feed-meta {
+		color: var(--fg-dim);
+		font-size: calc(10px * var(--ui-scale));
+		text-align: right;
+	}
+
 </style>
 </head>
 <body>
-	<div id="hint">
-		<h1>Kulmination</h1>
-		<div id="share-prompt" class="hidden"></div>
-		<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
-		<div class="search-row">
-			<select id="search-engine" title="search engine"></select>
-			<input id="track-search" type="search" placeholder="search Audius…" autocomplete="off" spellcheck="false">
+	<div id="menu-overlay">
+		<div class="menu-col">
+			<div id="recent-panel" class="hidden"></div>
+			<div id="most-played-panel" class="hidden"></div>
 		</div>
-		<div id="search-results"></div>
-		<div id="track-list">loading tracks…</div>
-		<div class="sub">controls: A / D &middot; ← → &middot; touch &amp; drag</div>
-		<div class="sub">or drop your music &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
+		<div id="hint">
+			<h1>Kulmination</h1>
+			<div id="share-prompt" class="hidden"></div>
+			<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
+			<div class="search-row">
+				<select id="search-engine" title="search engine"></select>
+				<input id="track-search" type="search" placeholder="search Audius…" autocomplete="off" spellcheck="false">
+			</div>
+			<div id="search-results"></div>
+			<div id="track-list">loading tracks…</div>
+			<div class="sub">controls: A / D &middot; ← → &middot; touch &amp; drag</div>
+			<div class="sub">or drop your music &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
+		</div>
+		<div class="menu-col">
+			<div id="leaderboard-panel" class="hidden"></div>
+		</div>
 	</div>
 
 	<div id="game-hud">
@@ -555,14 +741,39 @@
 		var activeTrackId  = null;      // currently playing preset id (null = preview or custom drop)
 		var currentAudioUrl = null;     // for revoking previous Blob URL on swap
 
-		function enterGameState(){ hintEl.classList.add('hidden'); }
+		function enterGameState(){
+			hintEl.classList.add('hidden');
+			if (typeof LeaderboardUI !== 'undefined') LeaderboardUI.hideFeeds();
+		}
 		function exitGameState(){
 			hintEl.classList.remove('hidden');
 			timeEl.classList.add('hidden');
 			clearCover();
 			renderTrackList();
+			if (typeof LeaderboardUI !== 'undefined') {
+				LeaderboardUI.showFeeds();
+				LeaderboardUI.refreshFeeds();
+			}
+		}
+
+		function onPickFeedTrack(source, id, title, artist){
+			var prompt = document.getElementById('share-prompt');
+			if (prompt) {
+				prompt.textContent = 'loading «' + (title || id) + '» from ' + source + '…';
+				prompt.classList.remove('hidden');
+			}
+			Search.lookup(source, id).then(function(result){
+				if (prompt) prompt.classList.add('hidden');
+				playSearchResult(result);
+			}).catch(function(err){
+				if (prompt) prompt.classList.add('hidden');
+				infoEl.textContent = 'feed pick failed: ' + (err.message || err);
+			});
 		}
 		window.addEventListener('track-finished', function(){
+			var finishedTrack = currentShareTrack;
+			var finishedScore = (typeof scoring !== 'undefined') ? scoring.getScore() : (window.SCORE | 0);
+			LeaderboardUI.onTrackFinished(finishedTrack, finishedScore);
 			clearShareTrack();
 			exitGameState();
 		});
@@ -640,6 +851,8 @@
 				// re-render now to pick up custom entries from previous sessions.
 				renderTrackList();
 				handleShareLink();
+				LeaderboardUI.init({ onPickTrack: onPickFeedTrack });
+				LeaderboardUI.refreshFeeds();
 			});
 		}
 
@@ -961,7 +1174,7 @@
 			activeTrackId = null;
 			// Meta saved before id-in-meta landed has source but no id —
 			// fall back to clearing the share state for those legacy entries.
-			if (meta.source && meta.id) setShareTrack(meta.source, meta.id);
+			if (meta.source && meta.id) setShareTrack(meta.source, meta.id, label, null);
 			else                        clearShareTrack();
 			setCover(meta.cover || null);
 			infoEl.textContent = 'fetching ' + label + '…';
@@ -1011,8 +1224,13 @@
 		// (no public URL on the other side to reconstruct from).
 		var currentShareTrack = null;
 
-		function setShareTrack(source, rawId){
-			currentShareTrack = { source: source, id: rawId };
+		function setShareTrack(source, rawId, title, artist){
+			currentShareTrack = {
+				source: source,
+				id:     rawId,
+				title:  title  || rawId,
+				artist: artist || null,
+			};
 			shareBtn.classList.remove('hidden');
 			var url = new URL(location.href);
 			url.search = '';
@@ -1032,7 +1250,7 @@
 			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
 			var rawId = result.id.indexOf(':') > -1 ? result.id.split(':')[1] : result.id;
 			activeTrackId = null;
-			setShareTrack(result.source, rawId);
+			setShareTrack(result.source, rawId, result.name, result.artist || null);
 			setCover(result.cover);
 			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
 			fetchWithProgress(result.audio, function(p){

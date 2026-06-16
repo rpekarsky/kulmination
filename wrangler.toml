@@ -32,3 +32,23 @@ command = "bash packages/game/.deploy/build.sh"
 # [[kv_namespaces]]
 # binding = "META_CACHE"
 # id      = "..."
+
+# D1 database for the leaderboard + play-feed. See
+# .deploy/leaderboard-setup.md for the one-time create / schema apply
+# steps. /api/* endpoints in src/worker.js degrade to 503 if this binding
+# is missing — frontend handles that gracefully.
+[[d1_databases]]
+binding       = "DB"
+database_name = "kulmination_db"
+database_id   = "09ea4508-400c-4ca7-a5a6-b589390381ad"
+
+# Workers Rate Limiting binding (CF Rate Limiting API, GA since 2024).
+# In-memory at the edge — no D1 touch on hot path. Currently caps
+# POST /api/play at 10 requests per 60-second window per cf-connecting-ip.
+# `namespace_id` is just a per-worker identifier, not tied to any CF
+# global — any unique integer works. `period` only supports 10 or 60.
+[[unsafe.bindings]]
+name         = "PLAY_RATELIMIT"
+type         = "ratelimit"
+namespace_id = "1001"
+simple       = { limit = 10, period = 60 }

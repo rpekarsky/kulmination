@@ -18,6 +18,8 @@ globalThis.GAME_SCRIPTS = [
 	'search/search.js',
 	'search/search-audius.js',
 	'search/search-ui.js',
+	'leaderboard.js',
+	'leaderboard-ui.js',
 	'MPlayer.js',
 	'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 	'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
