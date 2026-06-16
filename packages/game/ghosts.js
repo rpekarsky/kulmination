@@ -20,6 +20,8 @@ var Ghost = (function(){
         this.score    = row.score;
         this.history  = Array.isArray(row.history) ? row.history : [];
         this._cursor  = 0;                  // forward-walking lookup hint
+        this._smoothPos = null;             // null until first update sets a seed
+        this._lastT     = 0;                // performance.now() of last update
 
         this.geom = new THREE.BoxGeometry(1, 1, 1);
         this.mesh = new THREE.Mesh(this.geom, bodyMaterial);
@@ -69,9 +71,24 @@ var Ghost = (function(){
 
         // delta > 0 → player ahead in score → ghost should appear BEHIND
         // delta < 0 → ghost ahead in score → ghost appears AHEAD of player
-        var delta  = playerScore - ghostScore;
-        var offset = delta * Ghosts.SCORE_TO_POSITION;
-        var pos    = playerPos - offset;
+        var delta      = playerScore - ghostScore;
+        var offset     = delta * Ghosts.SCORE_TO_POSITION;
+        var desiredPos = playerPos - offset;
+
+        // Critically-damped lerp toward desiredPos. Time constant ≈ 0.5s
+        // (alpha = 1 - exp(-dt/0.5)), frame-rate independent. First call
+        // seeds smoothPos to desired so the ghost doesn't fly in from
+        // zero on spawn.
+        var now = performance.now();
+        if (this._smoothPos === null) {
+            this._smoothPos = desiredPos;
+        } else {
+            var dt    = Math.max(0, (now - this._lastT) / 1000);
+            var alpha = 1 - Math.exp(-dt / Ghosts.LERP_TIME_CONSTANT);
+            this._smoothPos += (desiredPos - this._smoothPos) * alpha;
+        }
+        this._lastT = now;
+        var pos = this._smoothPos;
 
         // Clamp inside the spline range; off-spline ghosts get hidden.
         if (pos < 0 || pos > level.length) {
@@ -80,6 +97,17 @@ var Ghost = (function(){
             return;
         }
         this.pivotPosition.visible = true;
+
+        // Linear fade of the nickname based on arc-distance to the
+        // player. Within FADE_NEAR fully opaque; past FADE_FAR fully
+        // transparent; smooth interpolation in between.
+        var dist     = Math.abs(pos - playerPos);
+        var fadeNear = Ghosts.LABEL_FADE_NEAR;
+        var fadeFar  = Ghosts.LABEL_FADE_FAR;
+        var labelOpacity = 1;
+        if (dist > fadeNear) {
+            labelOpacity = Math.max(0, 1 - (dist - fadeNear) / (fadeFar - fadeNear));
+        }
 
         var t   = pos / level.length;
         var pt  = spline.getPointAt(t);
@@ -112,8 +140,9 @@ var Ghost = (function(){
         var x = (worldPos.x + 1) / 2 * window.innerWidth;
         var y = (-worldPos.y + 1) / 2 * window.innerHeight;
         this.labelEl.style.display = 'block';
-        this.labelEl.style.left = x + 'px';
-        this.labelEl.style.top  = (y - 28) + 'px';
+        this.labelEl.style.left    = x + 'px';
+        this.labelEl.style.top     = (y - 28) + 'px';
+        this.labelEl.style.opacity = labelOpacity;
     };
 
     // Shared scratch matrix for screen-projection — reused every frame
@@ -143,7 +172,17 @@ var Ghosts = (function(){
     // tube uses tubeRadius=30 with level.length usually in the tens of
     // thousands per 3-min track; ~0.1 puts a 200-point lead ≈20 units
     // ahead, which is roughly Obstacles.screen visibility range.
-    var SCORE_TO_POSITION = 0.1;
+    var SCORE_TO_POSITION   = 0.1;
+
+    // Smoothing for ghost position: exponential lerp with this time
+    // constant. ~0.5s feels like a deliberate slide rather than a snap
+    // when the player picks up a coin and the ghost differential jumps.
+    var LERP_TIME_CONSTANT  = 0.5;
+
+    // Nickname label fade by arc-distance to player. Inside FADE_NEAR
+    // fully opaque; past FADE_FAR fully transparent.
+    var LABEL_FADE_NEAR     = 30;
+    var LABEL_FADE_FAR      = 200;
 
     function spawn(rows){
         clear();
@@ -175,6 +214,9 @@ var Ghosts = (function(){
         spawn: spawn,
         clear: clear,
         update: update,
-        SCORE_TO_POSITION: SCORE_TO_POSITION,
+        SCORE_TO_POSITION:  SCORE_TO_POSITION,
+        LERP_TIME_CONSTANT: LERP_TIME_CONSTANT,
+        LABEL_FADE_NEAR:    LABEL_FADE_NEAR,
+        LABEL_FADE_FAR:     LABEL_FADE_FAR,
     };
 })();
