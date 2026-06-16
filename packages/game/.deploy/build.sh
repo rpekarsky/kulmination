@@ -65,6 +65,12 @@ echo "  cwd: $(pwd)"
 echo
 
 pnpm install --frozen-lockfile
+
+# Tell build.js to minify packages/game/index.html in place. Only set
+# inside this script so local `npm run build` keeps the HTML source
+# editable; CI deploys always run via this script and get the minified
+# variant.
+export KULM_MINIFY_HTML=1
 pnpm run build
 
 # ─── Done ───────────────────────────────────────────────────────────
