@@ -1225,6 +1225,13 @@
 		// (no public URL on the other side to reconstruct from).
 		var currentShareTrack = null;
 
+		// Ghost data for the currently-playing track — top-N runs (with
+		// per-play history timelines) so we can later overlay other
+		// players' progress as the player runs the same track. Null
+		// before fetch completes, an array once loaded. PoC: just
+		// hangs on window for later rendering; no UI yet.
+		window.ghosts = null;
+
 		function setShareTrack(source, rawId, title, artist){
 			currentShareTrack = {
 				source: source,
@@ -1238,9 +1245,21 @@
 			url.searchParams.set('source', source);
 			url.searchParams.set('id',     rawId);
 			history.replaceState(null, '', url.toString());
+
+			// Fire-and-forget ghost fetch. Stash track identity on the
+			// promise's closure so a rapid track switch can discard the
+			// stale response.
+			window.ghosts = null;
+			var expected = currentShareTrack;
+			Leaderboard.ghosts(source, rawId, 10).then(function(data){
+				if (currentShareTrack !== expected) return;
+				window.ghosts = (data && data.rows) || [];
+				console.log('ghosts loaded:', window.ghosts.length, 'runs for', source + ':' + rawId);
+			});
 		}
 		function clearShareTrack(){
 			currentShareTrack = null;
+			window.ghosts = null;
 			shareBtn.classList.add('hidden');
 			if (location.search) history.replaceState(null, '', location.pathname);
 		}
