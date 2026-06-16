@@ -7,7 +7,8 @@
 // panels). No errors surfaced to the user for the PoC.
 
 var LeaderboardUI = (function(){
-    var pending = null;  // {source, id, title, artist, score} — current submission
+    var pending = null;            // {source, id, title, artist, score, history} — current pre-submit
+    var lastFinishedTrack = null;  // captured on each onTrackFinished — used by the replay button
 
     function $(id){ return document.getElementById(id); }
 
@@ -32,10 +33,16 @@ var LeaderboardUI = (function(){
         var mostPlayedEl  = $('most-played-panel');
         if (!leaderboardEl || !recentEl || !mostPlayedEl) return;
 
-        // Skip button hides the panel without submitting.
         leaderboardEl.addEventListener('click', function(e){
-            if (e.target && e.target.classList.contains('lb-skip')) hideLeaderboard();
-            if (e.target && e.target.classList.contains('lb-submit')) trySubmit();
+            if (!e.target) return;
+            if (e.target.classList.contains('lb-skip'))   hideLeaderboard();
+            if (e.target.classList.contains('lb-submit')) trySubmit();
+            if (e.target.classList.contains('lb-replay')) {
+                if (!lastFinishedTrack || typeof opts.onPickTrack !== 'function') return;
+                var t = lastFinishedTrack;
+                hideLeaderboard();
+                opts.onPickTrack(t.source, t.id, t.title || '', t.artist || '');
+            }
         });
 
         // Enter inside the nickname input → submit.
@@ -72,6 +79,15 @@ var LeaderboardUI = (function(){
             artist:  track.artist || null,
             score:   score | 0,
             history: Array.isArray(history) ? history : null,
+        };
+        // Cache the track identity so the replay button (which appears
+        // after submit, when `pending` has been cleared) still knows
+        // which track to reload.
+        lastFinishedTrack = {
+            source: track.source,
+            id:     track.id,
+            title:  track.title  || track.id,
+            artist: track.artist || null,
         };
         showLeaderboardLoading();
         Leaderboard.leaderboard(pending.source, pending.id).then(renderLeaderboard);
@@ -196,7 +212,10 @@ var LeaderboardUI = (function(){
                     html += rowHtml(i + 1, rows[i], isSelf);
                 }
                 html += '</div>';
-                html += '<div class="lb-actions"><button class="lb-skip">close</button></div>';
+                html += '<div class="lb-actions">' +
+                        '<button class="lb-replay">replay</button>' +
+                        '<button class="lb-skip">close</button>' +
+                        '</div>';
                 el.innerHTML = html;
                 var selfRow = el.querySelector('.lb-row-self');
                 if (selfRow && selfRow.scrollIntoView) {
