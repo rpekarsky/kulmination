@@ -20,10 +20,10 @@ var SFX = (function(){
         sources[name] = { audio: a, scale: scale == null ? 1 : scale };
     }
     //          name          scale (0..1, relative loudness)
-    loadSource('blip',        0.5);  // normal Coin pickup
-    loadSource('blip2',       1.0);  // big Coin pickup
+    loadSource('blip',        0.7);  // normal Coin pickup
+    loadSource('blip2',       0.5);  // big Coin pickup
     loadSource('damage',      1.0);  // RotateObstacle collision
-    loadSource('whoosh',      0.2);  // RotateObstacle successfully avoided (raw file is hot — 10% to sit under blips)
+    loadSource('whoosh',      0.3);  // RotateObstacle successfully avoided (raw file is hot — 10% to sit under blips)
     // ↑ tweak these once the actual wav files are dropped in and any of
     // them turns out to be louder/quieter than the others.
 

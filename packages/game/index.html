@@ -752,7 +752,7 @@
 			});
 			renderScaleEl.addEventListener('keydown', function(e){ e.stopPropagation(); });
 			window.addEventListener('resize', function(){
-				applyRenderScale(parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '3', 10));
+				applyRenderScale(parseInt(localStorage.getItem(RENDER_SCALE_KEY) || '1', 10));
 			});
 		}
 
