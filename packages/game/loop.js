@@ -66,6 +66,14 @@ function mainloop(){
 	// var lptm = controller.loopTime;
 	// curLoopTime = ((time - lptm) %  lptm)/lptm;
 	curLoopTime = getSmoothedAudioTime() / audioDuration;
+	// Clamp into [0, 1). When the track finishes audio.currentTime can
+	// land exactly at (or briefly past) duration; ClosedSplineCurve4's
+	// arc-length binary search then returns a c[0] of -1 on the boundary
+	// and spline.getPoint() trips on points[-1] undefined. Also covers
+	// transient NaN/Inf from currentTime during pause/load.
+	if (!isFinite(curLoopTime)) return;
+	if (curLoopTime < 0)       curLoopTime = 0;
+	if (curLoopTime > 0.9999)  curLoopTime = 0.9999;
 	// curLoopTime += 0.01837088491626749/1000;
 	lastX += (lastXto - lastX)*0.05;
 	if(lastXto == width/2){
@@ -77,12 +85,16 @@ function mainloop(){
 	// angle = angle%360;
 	// console.log(angle);
 	// camera2
-	gameCam.update();
-	player.update();
-	Obstacles.update();
+	// Each game-loop step gets its own try/catch so a spline / mesh /
+	// runtime hiccup in one subsystem doesn't blow up the entire frame
+	// (and via uncaught raf-callback throw, the next thousand frames).
+	// The warning fires at most once per subsystem per frame; live with
+	// the noise — replacement is "stop seeing the bug" via root cause.
+	try { gameCam.update();      } catch (e) { console.warn('gameCam.update failed:',   e); }
+	try { player.update();       } catch (e) { console.warn('player.update failed:',    e); }
+	try { Obstacles.update();    } catch (e) { console.warn('Obstacles.update failed:', e); }
 	if (typeof Ghosts !== 'undefined') {
-		try { Ghosts.update(); }
-		catch (e) { console.warn('Ghosts.update failed:', e); }
+		try { Ghosts.update(); } catch (e) { console.warn('Ghosts.update failed:', e); }
 	}
 	// colorHSL.h = colorHSLMain.h
 	// colorHSL.h += (colorHSLMain.h-colorHSL.h)*0.5;
