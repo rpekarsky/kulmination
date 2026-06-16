@@ -93,21 +93,32 @@ var Ghost = (function(){
         this.pivotRotate.rotation.z = this._angle * TO_RADIANS - 90 * TO_RADIANS;
 
         // Project mesh world position to screen for the HTML label.
+        // Three.js r67 has applyProjection (incl. perspective divide) but
+        // no Vector3.project shortcut yet — do the matrix composition by
+        // hand. Cached on the function so we don't allocate a new Matrix4
+        // every frame per ghost.
         var worldPos = new THREE.Vector3();
         this.mesh.updateMatrixWorld();
         worldPos.setFromMatrixPosition(this.mesh.matrixWorld);
-        var screen = worldPos.project(mainCamera);
-        // z > 1 → behind near plane / outside frustum
-        if (screen.z > 1 || screen.z < -1 || Math.abs(screen.x) > 1.2 || Math.abs(screen.y) > 1.2) {
+        var m = Ghost._projMatrix;
+        m.multiplyMatrices(mainCamera.projectionMatrix, mainCamera.matrixWorldInverse);
+        worldPos.applyProjection(m);
+        // After applyProjection, components are in clip space ([-1,1] when
+        // visible). z > 1 → behind near plane / outside frustum.
+        if (worldPos.z > 1 || worldPos.z < -1 || Math.abs(worldPos.x) > 1.2 || Math.abs(worldPos.y) > 1.2) {
             this.labelEl.style.display = 'none';
             return;
         }
-        var x = (screen.x + 1) / 2 * window.innerWidth;
-        var y = (-screen.y + 1) / 2 * window.innerHeight;
+        var x = (worldPos.x + 1) / 2 * window.innerWidth;
+        var y = (-worldPos.y + 1) / 2 * window.innerHeight;
         this.labelEl.style.display = 'block';
         this.labelEl.style.left = x + 'px';
         this.labelEl.style.top  = (y - 28) + 'px';
     };
+
+    // Shared scratch matrix for screen-projection — reused every frame
+    // by every ghost. Avoids per-frame allocation of Matrix4 instances.
+    Ghost._projMatrix = new THREE.Matrix4();
 
     Ghost.prototype.attach = function(){
         scene.add(this.pivotPosition);
