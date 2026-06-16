@@ -23,6 +23,6 @@ globalThis.GAME_SCRIPTS = [
 	'MPlayer.js',
 	'GameObject.js', 'Vector4.js', 'SplineCurve4.js', 'TubeGeometry.js',
 	'utils.js', 'gui.js', 'camera.js', 'player.js', 'obstacles.js', 'tube.js',
-	'hud.js', 'scoring.js', 'SFX.js', 'main.js', 'loop.js', 'initialize.js',
+	'hud.js', 'scoring.js', 'ghosts.js', 'SFX.js', 'main.js', 'loop.js', 'initialize.js',
 ];
 if (typeof module !== 'undefined') module.exports = globalThis.GAME_SCRIPTS;

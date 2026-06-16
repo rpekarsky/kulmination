@@ -392,6 +392,26 @@
 		border-radius: var(--radius);
 	}
 
+	/* Ghost-runner nickname labels — floating HTML over the 3D scene,
+	   re-positioned every frame by ghosts.js via mainCamera projection.
+	   Pointer-events off so they never steal canvas clicks. */
+	.ghost-label {
+		position: fixed;
+		left: 0; top: 0;
+		transform: translate(-50%, -100%);
+		padding: 2px 6px;
+		background: rgba(0,0,0,0.55);
+		color: #fff;
+		font-family: 'IBM VGA 8x16', monospace;
+		font-size: 11px;
+		letter-spacing: 1px;
+		border-radius: 2px;
+		pointer-events: none;
+		white-space: nowrap;
+		text-shadow: 1px 1px 0 #000;
+		z-index: 90;
+	}
+
 	/* Menu overlay — CSS grid with auto-fit columns. Each column is
 	   bounded 320px..480px wide; the grid fits as many as can hold their
 	   minimum and wraps the rest. justify-content:center keeps wrapped
@@ -775,6 +795,7 @@
 			var finishedScore = (typeof scoring !== 'undefined') ? scoring.getScore() : (window.SCORE | 0);
 			var finishedHistory = (typeof scoring !== 'undefined') ? scoring.getHistory() : null;
 			LeaderboardUI.onTrackFinished(finishedTrack, finishedScore, finishedHistory);
+			if (typeof Ghosts !== 'undefined') Ghosts.clear();
 			clearShareTrack();
 			exitGameState();
 		});
@@ -940,6 +961,12 @@
 				loadBeats();
 				addPlates();
 				scene.add(tubeMesh);
+
+				// Ghost data may have landed before the tube was ready —
+				// re-attach it now that spline/level are alive again.
+				if (typeof Ghosts !== 'undefined' && window.ghosts) {
+					Ghosts.spawn(window.ghosts);
+				}
 
 				// Score/multiplier/streak get reset; best score for this track
 				// is loaded from localStorage and pushed to bestHud. For custom
@@ -1248,13 +1275,19 @@
 
 			// Fire-and-forget ghost fetch. Stash track identity on the
 			// promise's closure so a rapid track switch can discard the
-			// stale response.
+			// stale response. If the tube/spline is already up by the
+			// time the response arrives (fast network, slow audio), we
+			// spawn immediately — otherwise swap() will do it.
 			window.ghosts = null;
+			if (typeof Ghosts !== 'undefined') Ghosts.clear();
 			var expected = currentShareTrack;
 			Leaderboard.ghosts(source, rawId, 10).then(function(data){
 				if (currentShareTrack !== expected) return;
 				window.ghosts = (data && data.rows) || [];
 				console.log('ghosts loaded:', window.ghosts.length, 'runs for', source + ':' + rawId);
+				if (typeof Ghosts !== 'undefined' && typeof spline !== 'undefined') {
+					Ghosts.spawn(window.ghosts);
+				}
 			});
 		}
 		function clearShareTrack(){

@@ -80,6 +80,7 @@ function mainloop(){
 	gameCam.update();
 	player.update();
 	Obstacles.update();
+	if (typeof Ghosts !== 'undefined') Ghosts.update();
 	// colorHSL.h = colorHSLMain.h
 	// colorHSL.h += (colorHSLMain.h-colorHSL.h)*0.5;
 	// colorHSL.s += (colorHSLMain.s-colorHSL.s)*0.2;
