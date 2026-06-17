@@ -623,20 +623,6 @@
 	}
 	#play-prompt .play-btn:focus { outline: none; border-color: #fff; }
 
-	/* Ghosts toggle in the overlay: reuse the vol-label styling so the
-	   click-to-mute affordance reads the same way. .muted = off. */
-	#ghosts-toggle {
-		cursor: pointer;
-		user-select: none;
-		padding: 2px 4px;
-		border-radius: var(--radius);
-	}
-	#ghosts-toggle:hover { color: var(--fg-bright); }
-	#ghosts-toggle.muted {
-		text-decoration: line-through;
-		color: var(--fg-dim);
-	}
-
 </style>
 </head>
 <body>
@@ -691,9 +677,7 @@
 			<span class="vol-label" data-channel="sfx" title="click to mute">sfx</span>
 			<input type="range" id="sfx-slider" min="0" max="100">
 		</span>
-		<span class="vol">
-			<span class="vol-label" id="ghosts-toggle" title="click to show/hide ghost runners">ghosts</span>
-		</span>
+		<button class="share" id="ghosts-toggle" title="show/hide ghost runners">toggle ghosts (on)</button>
 	</div>
 
 	<!-- Play prompt — appears after a track finishes loading + analyzing,
@@ -835,13 +819,14 @@
 			var el = document.getElementById('ghosts-toggle');
 			if (!el) return;
 			var on = localStorage.getItem(GHOSTS_VISIBLE_KEY) !== '0';
-			el.classList.toggle('muted', !on);
+			function render(){ el.textContent = 'toggle ghosts (' + (on ? 'on' : 'off') + ')'; }
+			render();
 			if (typeof Ghosts !== 'undefined') Ghosts.setVisible(on);
 			el.addEventListener('click', function(){
-				var nowOn = el.classList.contains('muted');
-				el.classList.toggle('muted', !nowOn);
-				localStorage.setItem(GHOSTS_VISIBLE_KEY, nowOn ? '1' : '0');
-				if (typeof Ghosts !== 'undefined') Ghosts.setVisible(nowOn);
+				on = !on;
+				localStorage.setItem(GHOSTS_VISIBLE_KEY, on ? '1' : '0');
+				render();
+				if (typeof Ghosts !== 'undefined') Ghosts.setVisible(on);
 			});
 		}
 
@@ -865,6 +850,7 @@
 		}
 
 		function onPickFeedTrack(source, id, title, artist){
+			primeAudio();
 			var prompt = document.getElementById('share-prompt');
 			if (prompt) {
 				prompt.textContent = 'loading «' + (title || id) + '» from ' + source + '…';
@@ -888,10 +874,34 @@
 			exitGameState();
 		});
 
-		// Audio-autoplay gating moved to an explicit per-track [play]
-		// prompt — see #play-prompt below. The user's click on that
-		// button IS the user-gesture token that grants MPlayer.audio.play()
-		// permission, so we no longer need a silent-WAV priming dance.
+		// Audio activation. Browsers grant autoplay only when .play() is
+		// called inside a user-gesture handler. Our flow is async — the
+		// click on a track triggers fetch → decode → analyze → swap →
+		// .play(), which can take seconds. To keep the gesture token
+		// alive across that gap, we call primeAudio() SYNCHRONOUSLY from
+		// each gesture handler: it plays a tiny silent WAV on MPlayer.audio,
+		// which registers user-activation on that element so subsequent
+		// .play() calls work without fresh gestures.
+		//
+		// Drag-and-drop has no gesture (the drop event isn't user-
+		// activation in most browsers), so the DnD handler instead shows
+		// the #play-prompt — the click on that prompt IS the gesture, and
+		// it primes audio + launches analysis.
+		var SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+		var audioPrimed = false;
+		function primeAudio(){
+			if (audioPrimed) return;
+			if (typeof MPlayer === 'undefined' || !MPlayer.audio) return;
+			audioPrimed = true;
+			MPlayer.audio.src = SILENT_WAV;
+			var p = MPlayer.audio.play();
+			if (p && p.then) {
+				p.then(function(){
+					MPlayer.audio.pause();
+					MPlayer.audio.currentTime = 0;
+				}).catch(function(){});
+			}
+		}
 
 		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
 
@@ -1040,21 +1050,13 @@
 				// the track shows up in the list immediately.
 				scoring.reset(label, isCustom);
 
+				window.PREVIEW = false;
 				window.__rebuilding = false;
 				infoEl.textContent = label;
+				enterGameState();
 				renderTrackList();
-
-				// Show the [play] prompt — the click on it is what grants
-				// autoplay permission to MPlayer.audio.play(). enterGameState
-				// + PREVIEW=false flip live inside the prompt's callback so
-				// the menu only disappears once the user has committed.
-				var artistName = (currentShareTrack && currentShareTrack.artist) || '';
-				showPlayPrompt(label, artistName, function(){
-					window.PREVIEW = false;
-					enterGameState();
-					var p = MPlayer.play();
-					if (p && p.catch) p.catch(function(err){ console.warn('audio play() rejected:', err); });
-				});
+				var p = MPlayer.play();
+				if (p && p.catch) p.catch(function(err){ console.warn('audio play() rejected:', err); });
 			}).catch(function(err){
 				window.__rebuilding = false;
 				infoEl.textContent = 'rebuild failed: ' + (err && err.message || err);
@@ -1272,6 +1274,7 @@
 		// kept after the first play). Same swap path as a fresh search
 		// result; we just skip the search step.
 		function loadFromMeta(label, meta){
+			primeAudio();
 			showLoading();
 			setLoadingText('loading…');
 			activeTrackId = null;
@@ -1292,6 +1295,7 @@
 		}
 
 		function loadPreset(t){
+			primeAudio();
 			showLoading();
 			setLoadingText('loading…');
 			clearShareTrack();
@@ -1386,6 +1390,7 @@
 		}
 
 		function playSearchResult(result){
+			primeAudio();
 			showLoading();
 			setLoadingText('loading…');
 			var label = result.artist ? (result.artist + ' — ' + result.name) : result.name;
@@ -1542,10 +1547,18 @@
 				return;
 			}
 
-			activeTrackId = null;
-			clearShareTrack();
-			clearCover();
-			analyzeAndPlay(audio, audio.name, true);
+			// Drop events aren't user-activation in most browsers, so we
+			// gate ALL DnD work behind a [play] confirmation. The click on
+			// that prompt is the gesture token; it primes audio + kicks
+			// off analysis. Loading flows from search/list lists don't go
+			// through this gate — their click IS already the gesture.
+			showPlayPrompt(audio.name, '', function(){
+				primeAudio();
+				activeTrackId = null;
+				clearShareTrack();
+				clearCover();
+				analyzeAndPlay(audio, audio.name, true);
+			});
 		});
 
 		// Boot preview on page load.
