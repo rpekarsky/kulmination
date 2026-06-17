@@ -150,6 +150,13 @@
 		box-sizing: border-box;
 		flex: 0 1 500px;
 		min-width: 280px;
+		/* When the grid row is taller than #hint's content (left column
+		   has recent + most-played panels visible), #hint stretches via
+		   the grid's default `align-items: stretch`. Inner flex layout
+		   lets #track-list eat the slack. */
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 	#hint.hidden { display: none; }
 	#hint h1 { margin: 0 0 8px; font-size: calc(18px * var(--ui-scale)); letter-spacing: 2px; color: var(--fg-bright); }
@@ -159,7 +166,8 @@
 		display: flex; flex-direction: column;
 		text-align: left;
 		margin: 6px 0;
-		max-height: 154px;
+		flex: 1 1 auto;          /* eats vertical slack inside #hint */
+		min-height: 154px;       /* floor — was the old hard cap, now the bottom */
 		overflow-y: auto;
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
@@ -207,7 +215,7 @@
 	#hint #track-list .item .ext:hover { color: var(--fg-bright); }
 
 	#share-prompt {
-		margin: 0 0 8px;
+		margin: 10px 0 0;
 		padding: 10px 14px;
 		background: var(--info-bg);
 		border: 1px solid var(--info-bd);
@@ -633,13 +641,13 @@
 		</div>
 		<div id="hint">
 			<h1>Kulmination (Prototype)</h1>
-			<div id="share-prompt" class="hidden"></div>
 			<div class="search-row">
 				<select id="search-engine" title="search engine"></select>
 				<input id="track-search" type="search" placeholder="search Audius…" autocomplete="off" spellcheck="false">
 			</div>
 			<div id="search-results"></div>
 			<div id="track-list">loading tracks…</div>
+			<div id="share-prompt" class="hidden"></div>
 			<div class="sub">controls: A / D &middot; ← → &middot; touch &amp; drag</div>
 			<div class="sub">or drop your music &middot; <a href="https://github.com/rpekarsky/kulmination" target="_blank" rel="noopener">source on github</a></div>
 		</div>
