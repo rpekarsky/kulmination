@@ -24,7 +24,7 @@ const EXPECTED_GLOBALS = [
 	'scoreHud', 'multiplerHud', 'streakHud', 'bestHud',
 	'detectBeats', 'filterBeats', 'throttleWalls',
 	'Search', 'SearchUI',
-	'Leaderboard', 'LeaderboardUI', 'Ghosts',
+	'Leaderboard', 'LeaderboardUI', 'Ghosts', 'TrackCache',
 	'spline', 'level', 'tubeMesh', 'BgPlate',
 	'mainCamera', 'renderer', 'scene',
 	'loadBeats', 'addPlates',

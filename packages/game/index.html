@@ -1248,7 +1248,12 @@
 			});
 			listCustomEntries().forEach(function(c){
 				var meta = getTrackMeta(c.id);
-				var click = (meta && meta.audio) ? function(e){
+				// Replayable iff we have either a URL fallback or a
+				// stable (source, id) the cache might hold. The actual
+				// cache check happens at click time in loadFromMeta;
+				// here we just decide whether to render the row hot.
+				var canReplay = meta && (meta.audio || (meta.source && meta.id));
+				var click = canReplay ? function(e){
 					e.preventDefault();
 					loadFromMeta(c.id, meta);
 				} : null;
@@ -1278,16 +1283,47 @@
 			showLoading();
 			setLoadingText('loading…');
 			activeTrackId = null;
-			// Meta saved before id-in-meta landed has source but no id —
-			// fall back to clearing the share state for those legacy entries.
-			if (meta.source && meta.id) setShareTrack(meta.source, meta.id, label, null);
-			else                        clearShareTrack();
+			// Custom (DnD) tracks have no shareable source/id pair —
+			// only Audius does.
+			if (meta.source && meta.id && meta.source !== 'custom') {
+				setShareTrack(meta.source, meta.id, label, null);
+			} else {
+				clearShareTrack();
+			}
 			setCover(meta.cover || null);
 			infoEl.textContent = 'fetching ' + label + '…';
-			fetchWithProgress(meta.audio, function(p){
-				setLoadingText('loading ' + Math.floor(p * 100) + '%');
+
+			// Cache first (works for Audius re-loads AND for DnD restores
+			// after page refresh, where meta.audio is null). Fall back to
+			// the network only for Audius / legacy entries that still have
+			// a URL.
+			var cacheLookup = (meta.source && meta.id)
+				? TrackCache.lookup(meta.source, meta.id)
+				: Promise.resolve(null);
+
+			cacheLookup.then(function(cached){
+				if (cached) {
+					setLoadingText('cached…');
+					return cached;
+				}
+				if (!meta.audio) {
+					throw new Error('drop the file again — cached copy expired');
+				}
+				return fetchWithProgress(meta.audio, function(p){
+					setLoadingText('loading ' + Math.floor(p * 100) + '%');
+				}).then(function(blob){
+					// Audius URL fetched — populate cache so next replay
+					// is instant. Custom has no URL → never reaches here.
+					if (meta.source && meta.id && meta.source !== 'custom') {
+						TrackCache.put(meta.source, meta.id, blob, {
+							title:  label,
+							cover:  meta.cover || null,
+						});
+					}
+					return blob;
+				});
 			}).then(function(blob){
-				return analyzeAndPlay(blob, label, true);
+				return analyzeAndPlay(blob, label, meta.source === 'custom');
 			}).catch(function(err){
 				hideLoading();
 				infoEl.textContent = 'replay fetch failed: ' + (err.message || err);
@@ -1399,8 +1435,24 @@
 			setShareTrack(result.source, rawId, result.name, result.artist || null);
 			setCover(result.cover);
 			infoEl.textContent = 'fetching ' + label + ' from ' + result.source + '…';
-			fetchWithProgress(result.audio, function(p){
-				setLoadingText('loading ' + Math.floor(p * 100) + '%');
+
+			// IndexedDB cache: avoid re-downloading the same Audius blob
+			// across reloads/replays. Miss → network fetch + populate cache.
+			TrackCache.lookup(result.source, rawId).then(function(cached){
+				if (cached) {
+					setLoadingText('cached…');
+					return cached;
+				}
+				return fetchWithProgress(result.audio, function(p){
+					setLoadingText('loading ' + Math.floor(p * 100) + '%');
+				}).then(function(blob){
+					TrackCache.put(result.source, rawId, blob, {
+						title:  result.name,
+						artist: result.artist || null,
+						cover:  result.cover || null,
+					});
+					return blob;
+				});
 			}).then(function(blob){
 				saveTrackMeta(label, {
 					audio:     result.audio,
@@ -1557,6 +1609,17 @@
 				activeTrackId = null;
 				clearShareTrack();
 				clearCover();
+				// Persist the blob in IndexedDB + a meta pointer in
+				// localStorage so this drop survives a page refresh.
+				// Composite id (name + size + lastModified) makes the
+				// same file dropped twice hit the existing cache row.
+				var fileId = TrackCache.customId(audio);
+				TrackCache.put('custom', fileId, audio, { title: audio.name });
+				saveTrackMeta(audio.name, {
+					source: 'custom',
+					id:     fileId,
+					audio:  null,   // blob URL dies on refresh — cache is the source of truth
+				});
 				analyzeAndPlay(audio, audio.name, true);
 			});
 		});
