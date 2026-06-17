@@ -157,7 +157,8 @@ var Ghost = (function(){
 
 
 var Ghosts = (function(){
-    var active = [];
+    var active  = [];
+    var enabled = true;     // toggled by the #ghosts-toggle UI
 
     // Player's smoothed score for ghost-offset rendering. Lerps toward
     // scoring.getScore() with the same alpha each ghost uses for its
@@ -198,8 +199,18 @@ var Ghosts = (function(){
         lastT = 0;
     }
 
+    function setVisible(v){
+        enabled = !!v;
+        if (!enabled) {
+            for (var i = 0; i < active.length; i++) {
+                active[i].pivotPosition.visible = false;
+                active[i].labelEl.style.display = 'none';
+            }
+        }
+    }
+
     function update(){
-        if (!active.length || typeof player === 'undefined') return;
+        if (!enabled || !active.length || typeof player === 'undefined') return;
         var actualPlayerScore = (typeof scoring !== 'undefined') ? scoring.getScore() : 0;
         var playerPos         = player.position;
 
@@ -221,9 +232,10 @@ var Ghosts = (function(){
     }
 
     return {
-        spawn: spawn,
-        clear: clear,
-        update: update,
+        spawn:      spawn,
+        clear:      clear,
+        update:     update,
+        setVisible: setVisible,
         SCORE_TO_POSITION:  SCORE_TO_POSITION,
         LERP_TIME_CONSTANT: LERP_TIME_CONSTANT,
         SCORE_DIFF_NEAR:    SCORE_DIFF_NEAR,

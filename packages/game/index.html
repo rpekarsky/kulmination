@@ -206,17 +206,6 @@
 	}
 	#hint #track-list .item .ext:hover { color: var(--fg-bright); }
 
-	#audio-prompt {
-		margin: 0 0 8px;
-		padding: 6px 10px;
-		background: var(--warn-bg);
-		border: 1px solid var(--warn-bd);
-		border-radius: var(--radius);
-		color: var(--warn);
-		font-size: calc(12px * var(--ui-scale));
-	}
-	#audio-prompt.hidden { display: none; }
-
 	#share-prompt {
 		margin: 0 0 8px;
 		padding: 10px 14px;
@@ -585,6 +574,69 @@
 		text-align: right;
 	}
 
+	/* Play prompt — full-screen modal between track-loaded and audio-
+	   playing. The click on .play-btn (or anywhere on the prompt) is the
+	   user-gesture that authorizes MPlayer.audio.play(). */
+	#play-prompt {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		background: rgba(0,0,0,0.55);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		z-index: 200;
+		cursor: pointer;
+		font-family: 'IBM VGA 8x16', monospace;
+	}
+	#play-prompt.hidden { display: none; }
+	#play-prompt .play-title {
+		color: #fff;
+		font-size: calc(22px * var(--ui-scale));
+		letter-spacing: 2px;
+		text-align: center;
+		max-width: 80vw;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+	#play-prompt .play-artist {
+		color: rgba(255,255,255,0.55);
+		font-size: calc(13px * var(--ui-scale));
+		margin-bottom: 28px;
+	}
+	#play-prompt .play-btn {
+		background: rgba(255,255,255,0.08);
+		color: #fff;
+		border: 1px solid rgba(255,255,255,0.4);
+		border-radius: var(--radius);
+		padding: 14px 40px;
+		font-family: inherit;
+		font-size: calc(20px * var(--ui-scale));
+		letter-spacing: 4px;
+		cursor: pointer;
+	}
+	#play-prompt .play-btn:hover {
+		background: rgba(255,255,255,0.18);
+		border-color: rgba(255,255,255,0.75);
+	}
+	#play-prompt .play-btn:focus { outline: none; border-color: #fff; }
+
+	/* Ghosts toggle in the overlay: reuse the vol-label styling so the
+	   click-to-mute affordance reads the same way. .muted = off. */
+	#ghosts-toggle {
+		cursor: pointer;
+		user-select: none;
+		padding: 2px 4px;
+		border-radius: var(--radius);
+	}
+	#ghosts-toggle:hover { color: var(--fg-bright); }
+	#ghosts-toggle.muted {
+		text-decoration: line-through;
+		color: var(--fg-dim);
+	}
+
 </style>
 </head>
 <body>
@@ -596,7 +648,6 @@
 		<div id="hint">
 			<h1>Kulmination (Prototype)</h1>
 			<div id="share-prompt" class="hidden"></div>
-			<div id="audio-prompt">⚠ click anywhere first to enable sound (browser autoplay rules)</div>
 			<div class="search-row">
 				<select id="search-engine" title="search engine"></select>
 				<input id="track-search" type="search" placeholder="search Audius…" autocomplete="off" spellcheck="false">
@@ -640,6 +691,19 @@
 			<span class="vol-label" data-channel="sfx" title="click to mute">sfx</span>
 			<input type="range" id="sfx-slider" min="0" max="100">
 		</span>
+		<span class="vol">
+			<span class="vol-label" id="ghosts-toggle" title="click to show/hide ghost runners">ghosts</span>
+		</span>
+	</div>
+
+	<!-- Play prompt — appears after a track finishes loading + analyzing,
+	     before audio actually starts. Click anywhere starts playback;
+	     this click IS the user-gesture token that grants autoplay
+	     permission, which is why we no longer pre-prime audio. -->
+	<div id="play-prompt" class="hidden">
+		<div class="play-title"></div>
+		<div class="play-artist"></div>
+		<button class="play-btn">▶ play</button>
 	</div>
 
 	<!-- Boot-time script order — single source of truth for both the
@@ -736,6 +800,51 @@
 			});
 		}
 
+		// Show the play-prompt with the track meta. Any click on the
+		// overlay (including the explicit [play] button) hides the prompt
+		// and invokes onPlay() — the click is the user-gesture that
+		// authorizes MPlayer.audio.play(). Enter / Space also trigger.
+		function showPlayPrompt(title, artist, onPlay){
+			var el     = document.getElementById('play-prompt');
+			var titleE = el.querySelector('.play-title');
+			var artE   = el.querySelector('.play-artist');
+			var btn    = el.querySelector('.play-btn');
+			titleE.textContent = title || '';
+			artE.textContent   = artist || '';
+			el.classList.remove('hidden');
+			btn.focus();
+
+			function trigger(e){
+				if (e && e.preventDefault) e.preventDefault();
+				el.classList.add('hidden');
+				el.removeEventListener('click',   trigger);
+				document.removeEventListener('keydown', onKey);
+				onPlay();
+			}
+			function onKey(e){
+				if (e.key === 'Enter' || e.key === ' ') trigger(e);
+			}
+			el.addEventListener('click', trigger);
+			document.addEventListener('keydown', onKey);
+		}
+
+		// Ghosts visibility toggle in the top overlay. Persisted in
+		// localStorage so the choice survives across sessions.
+		var GHOSTS_VISIBLE_KEY = 'kulm_show_ghosts';
+		function wireGhostsToggle(){
+			var el = document.getElementById('ghosts-toggle');
+			if (!el) return;
+			var on = localStorage.getItem(GHOSTS_VISIBLE_KEY) !== '0';
+			el.classList.toggle('muted', !on);
+			if (typeof Ghosts !== 'undefined') Ghosts.setVisible(on);
+			el.addEventListener('click', function(){
+				var nowOn = el.classList.contains('muted');
+				el.classList.toggle('muted', !nowOn);
+				localStorage.setItem(GHOSTS_VISIBLE_KEY, nowOn ? '1' : '0');
+				if (typeof Ghosts !== 'undefined') Ghosts.setVisible(nowOn);
+			});
+		}
+
 		var presets        = [];        // manifest entries [{id, audio, beats}]
 		var activeTrackId  = null;      // currently playing preset id (null = preview or custom drop)
 		var currentAudioUrl = null;     // for revoking previous Blob URL on swap
@@ -779,36 +888,10 @@
 			exitGameState();
 		});
 
-		// Audio priming. Browsers (Firefox especially) block .play() that
-		// originates from an async chain because the click's user-activation
-		// window expires before MPlayer.play() actually runs. We catch the
-		// very first user gesture on the page, play a tiny silent WAV to
-		// register activation on MPlayer.audio, then later .play() calls on
-		// the same element bypass the autoplay policy. The yellow prompt in
-		// the hint card explains why we want that first click.
-		var SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-		var audioPrimed = false;
-		function primeAudio(){
-			if (audioPrimed) return;
-			if (typeof MPlayer === 'undefined' || !MPlayer.audio) return;
-			audioPrimed = true;
-			MPlayer.audio.src = SILENT_WAV;
-			var p = MPlayer.audio.play();
-			if (p && p.then) {
-				p.then(function(){
-					MPlayer.audio.pause();
-					MPlayer.audio.currentTime = 0;
-				}).catch(function(){
-					// silent wav failed — let it slide; the per-preset
-					// loadPreset path still primes on click.
-				});
-			}
-			var prompt = document.getElementById('audio-prompt');
-			if (prompt) prompt.classList.add('hidden');
-		}
-		document.addEventListener('click',      primeAudio);
-		document.addEventListener('keydown',    primeAudio);
-		document.addEventListener('touchstart', primeAudio);
+		// Audio-autoplay gating moved to an explicit per-track [play]
+		// prompt — see #play-prompt below. The user's click on that
+		// button IS the user-gesture token that grants MPlayer.audio.play()
+		// permission, so we no longer need a silent-WAV priming dance.
 
 		function isAudioFile(n){ return /\.(mp3|ogg|wav|m4a|flac|aac)$/i.test(n); }
 
@@ -848,6 +931,7 @@
 				wireShareButton();
 				wireTimeDisplay();
 				wireRenderScale();
+				wireGhostsToggle();
 				// `scoring.CUSTOM_PREFIX` only exists after scoring.js loads —
 				// re-render now to pick up custom entries from previous sessions.
 				renderTrackList();
@@ -956,12 +1040,21 @@
 				// the track shows up in the list immediately.
 				scoring.reset(label, isCustom);
 
-				window.PREVIEW = false;
 				window.__rebuilding = false;
 				infoEl.textContent = label;
-				enterGameState();
 				renderTrackList();
-				MPlayer.play();
+
+				// Show the [play] prompt — the click on it is what grants
+				// autoplay permission to MPlayer.audio.play(). enterGameState
+				// + PREVIEW=false flip live inside the prompt's callback so
+				// the menu only disappears once the user has committed.
+				var artistName = (currentShareTrack && currentShareTrack.artist) || '';
+				showPlayPrompt(label, artistName, function(){
+					window.PREVIEW = false;
+					enterGameState();
+					var p = MPlayer.play();
+					if (p && p.catch) p.catch(function(err){ console.warn('audio play() rejected:', err); });
+				});
 			}).catch(function(err){
 				window.__rebuilding = false;
 				infoEl.textContent = 'rebuild failed: ' + (err && err.message || err);
